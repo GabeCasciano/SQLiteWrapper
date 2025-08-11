@@ -1,13 +1,15 @@
 #ifndef SQL_VALUE_H
 #define SQL_VALUE_H
 
-#include <cstddef>
-#include <cstring>
 #ifndef ARDUINO
-#include <cassert>
+#include <assert.h>
 #include <cstdint>
-#include <string>
-#include <vector>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <utility>
+#else
+#include <Arduino>
 #endif
 #include <sqlite3.h>
 
@@ -83,7 +85,7 @@ struct SqlValue {
       break;
     case Type::Text:
     case Type::Blob:
-      free(str);
+      delete str;
       str = new char[size];
       strcpy(str, st.s);
       break;
@@ -165,10 +167,10 @@ private:
   void destroy() {
     switch (kind) {
     case Type::Text:
-      free(st.s);
+      delete st.s;
       break;
     case Type::Blob:
-      free(st.b);
+      delete st.b;
       break;
     }
     kind = Type::Null;
