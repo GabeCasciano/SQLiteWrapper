@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <utility>
 #else
 #include <Arduino>
@@ -52,9 +53,9 @@ struct SqlValue {
 
   ~SqlValue() { destroy(); }
 
-  Type type() const { return kind; }
+  Type type() { return kind; }
 
-  const char *typeString() const {
+  const char *typeString() {
     switch (kind) {
     case Type::Null:
       return "NULL";
@@ -71,34 +72,31 @@ struct SqlValue {
     }
   }
 
-  char *toString(char *str) const {
-    str = new char[32];
+  const char * toString() {
     switch (kind) {
     case Type::Null:
-      sprintf(str, "NULL");
+      str = "NULL";
       break;
     case Type::Integer:
-      sprintf(str, "%ld", st.i);
+      str = std::to_string(st.i) ;
       break;
     case Type::Real:
-      sprintf(str, "%f", st.r); // print 6 decimals
+      str = std::to_string(st.r);
       break;
     case Type::Text:
     case Type::Blob:
-      delete str;
-      str = new char[size];
-      strcpy(str, st.s);
+      str = st.s;
       break;
     }
-    return str;
+    return str.c_str();
   }
 
   // Accessors (assert on wrong type for simplicity)
-  int64_t as_int() const {
+  int64_t as_int() {
     assert(kind == Type::Integer);
     return st.i;
   }
-  double as_real() const {
+  double as_real() {
     assert(kind == Type::Real);
     return st.r;
   }
@@ -154,6 +152,7 @@ struct SqlValue {
 private:
   Type kind;
   size_t size; // in bytes
+  std::string str;
 
   union Storage {
     int64_t i;
