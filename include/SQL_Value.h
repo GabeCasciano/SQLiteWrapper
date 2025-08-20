@@ -172,6 +172,8 @@ private:
     case Type::Blob:
       delete st.b;
       break;
+    default:
+      st.i = 0;
     }
     kind = Type::Null;
   }
