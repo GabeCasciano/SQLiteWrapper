@@ -89,6 +89,17 @@ struct Table {
       free(values);
   }
 
+  Row_t getRow(long rowIdx){
+    if(rowIdx > rowCount)
+      return Row_t();
+
+    Row_t r = Row_t(colCount);
+    for(short i = 0 ; i < colCount ; ++i)
+      r.columns[i] = Column_t(names[i], values[rowIdx][i], false);
+
+    return r;
+  }
+
   void setColName(const char *name, short colNum) {
     if (colNum < colCount)
       safeNameCopy(names[colNum], name, MAX_COLUMN_NAME_LENGTH);

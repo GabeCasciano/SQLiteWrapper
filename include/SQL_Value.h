@@ -15,7 +15,7 @@
 #include <sqlite3.h>
 
 struct SqlValue {
-  enum class Type : uint8_t { Null, Integer, Real, Text, Blob };
+  enum Type { Null = 0, Integer = 1, Real = 2, Text = 3, Blob = 4 };
 
   SqlValue() : kind(Type::Null) {}
   SqlValue(int64_t v) : kind(Type::Integer) { st.i = v; }
@@ -53,7 +53,7 @@ struct SqlValue {
 
   ~SqlValue() { destroy(); }
 
-  Type type() { return kind; }
+  int64_t type() { return kind; }
 
   const char *typeString() {
     switch (kind) {
@@ -72,13 +72,13 @@ struct SqlValue {
     }
   }
 
-  const char * toString() {
+  const char *toString() {
     switch (kind) {
     case Type::Null:
       str = "NULL";
       break;
     case Type::Integer:
-      str = std::to_string(st.i) ;
+      str = std::to_string(st.i);
       break;
     case Type::Real:
       str = std::to_string(st.r);
