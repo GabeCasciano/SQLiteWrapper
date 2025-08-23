@@ -3,120 +3,165 @@
 
 #include "SQL_Utility.h"
 #include "SQL_Value.h"
+#include <cstdlib>
+#include <cstring>
 
 #define MAX_COLUMN_NAME_LENGTH (32)
-
-struct Column_t {
-  char name[MAX_COLUMN_NAME_LENGTH];
-  SqlValue value;
-  bool primaryKey = false;
-  Column_t(const char *name, SqlValue value, bool primaryKey)
-      : value(value), primaryKey(primaryKey) {
-    safeNameCopy((char *)&this->name, name, MAX_COLUMN_NAME_LENGTH);
-  }
-  Column_t() = default;
-};
+#define MAX_TABLE_NAME_LENGTH (32)
 
 struct Row_t {
-  short colCount;
-  Column_t *columns;
-  Row_t(short colCount)
-      : colCount(colCount),
-        columns((Column_t *)malloc(sizeof(Column_t) * colCount)) {}
-  Row_t(Column_t *columns, short colCount) : colCount(colCount) {
-    this->columns = new Column_t[colCount];
-    memcpy((void *)this->columns, columns, sizeof(Column_t) * colCount);
-  }
-  Row_t() = default;
-  ~Row_t() {
-    if (!columns)
-      free(columns);
-  }
-};
-
-struct ColumnOfData {
-  long rowCount;
-  char name[MAX_COLUMN_NAME_LENGTH];
+  unsigned short colCount = 0;
   SqlValue *values;
-
-  ColumnOfData(const char *name, long rowCount)
-      : rowCount(rowCount),
-        values((SqlValue *)malloc(sizeof(SqlValue) * rowCount)) {
-    safeNameCopy((char *)&this->name, name, MAX_COLUMN_NAME_LENGTH);
+  Row_t() = default;
+  Row_t(unsigned short colCount) : colCount(colCount) {
+    this->values = new SqlValue[colCount];
   }
-
-  ColumnOfData(const char *name, SqlValue *values, long rowCount)
-      : rowCount(rowCount),
-        values((SqlValue *)malloc(sizeof(SqlValue) * rowCount)) {
-    safeNameCopy((char *)&this->name, name, MAX_COLUMN_NAME_LENGTH);
-    memcpy((void *)this->values, values, sizeof(SqlValue) * rowCount);
+  Row_t(unsigned short colCount, unsigned long rIdx, SqlValue **src)
+      : colCount(colCount) {
+    this->values = new SqlValue[colCount];
+    copy_data(src, rIdx);
   }
-
-  ~ColumnOfData() {
+  ~Row_t() {
     if (values)
-      free(values);
+      delete[] values;
+    colCount = 0;
+  }
+
+private:
+  void copy_data(SqlValue **src, unsigned long rIdx) {
+    if (!values)
+      return;
+
+    for (unsigned i = 0; i < colCount; ++i)
+      values[i] = src[i][rIdx];
   }
 };
 
-struct Table {
-  short colCount;
-  long rowCount = 0;
-  long rowCap = 0;
-  char **names;
-  SqlValue **values;
-
-  Table(short colCount)
-      : colCount(colCount), names((char **)malloc(sizeof(char) * colCount *
-                                                  MAX_COLUMN_NAME_LENGTH)) {}
-  Table(short colCount, char **names)
-      : colCount(colCount), names((char **)malloc(sizeof(char) * colCount *
-                                                  MAX_COLUMN_NAME_LENGTH)) {
-    for (int i = 0; i < colCount; ++i)
-      safeNameCopy((char *)&this->names[i], names[i], MAX_COLUMN_NAME_LENGTH);
+struct Column_t {
+  unsigned long rowCount = 0;
+  SqlValue *values;
+  Column_t() = default;
+  Column_t(unsigned long rowCount) : rowCount(rowCount) {
+    values = new SqlValue[rowCount];
   }
-  Table(Row_t row)
-      : colCount(row.colCount), names((char **)malloc(sizeof(char) * colCount *
-                                                      MAX_COLUMN_NAME_LENGTH)) {
-    for (int i = 0; i < colCount; ++i)
-      safeNameCopy((char *)&this->names[i], row.columns[i].name,
-                   MAX_COLUMN_NAME_LENGTH);
+  Column_t(unsigned long rowCount, SqlValue *src) : rowCount(rowCount) {
+    values = new SqlValue[rowCount];
+    copy_data(src);
   }
-  Table() = default;
-  ~Table() {
-    if (names)
-      free(names);
+  ~Column_t() {
     if (values)
-      free(values);
+      delete[] values;
   }
 
-  Row_t getRow(long rowIdx){
-    if(rowIdx > rowCount)
+private:
+  void copy_data(SqlValue *src) {
+    if (!values)
+      return;
+    memcpy((void *)values, src, rowCount);
+  }
+};
+
+struct Matrix_t {
+
+  unsigned short colCount = 0;
+  unsigned long rowCount = 0;
+  char name[MAX_TABLE_NAME_LENGTH];
+  SqlValue **values;
+  char **columnNames;
+
+  // default constructor
+  Matrix_t() = default;
+  // construcotr
+  Matrix_t(const char *name, const unsigned short colCount,
+           const unsigned long rowCount, const char **columnNames)
+      : colCount(colCount), rowCount(rowCount) {
+
+    safeNameCopy(this->name, name, MAX_TABLE_NAME_LENGTH);
+    create(colCount, rowCount);
+    copy_names((char **)columnNames, colCount);
+  }
+  // destructor
+  ~Matrix_t() { destroy(); }
+
+  // copy
+  Matrix_t(const Matrix_t &other) { copy_from(other); }
+  // copy assignment
+  Matrix_t &operator=(const Matrix_t &other) {
+    if (this != &other) {
+      // destroy(); // Copy does the destroy
+      copy_from(other);
+    }
+    return *this;
+  }
+  // move
+  Matrix_t(Matrix_t &&other) noexcept { move_from(std::move(other)); }
+  // move asignment
+  Matrix_t &operator=(Matrix_t &&other) noexcept {
+    if (this != &other) {
+      // destroy(); // move does the destroy
+      move_from(std::move(other));
+    }
+    return *this;
+  }
+
+  Row_t getRow(unsigned long rIdx) {
+    if (rIdx >= rowCount)
       return Row_t();
 
-    Row_t r = Row_t(colCount);
-    for(short i = 0 ; i < colCount ; ++i)
-      r.columns[i] = Column_t(names[i], values[rowIdx][i], false);
-
-    return r;
+    return Row_t(colCount, rIdx, values);
   }
 
-  void setColName(const char *name, short colNum) {
-    if (colNum < colCount)
-      safeNameCopy(names[colNum], name, MAX_COLUMN_NAME_LENGTH);
+  Column_t getColumn(unsigned short cIdx) {
+    if (cIdx >= colCount)
+      return Column_t();
+
+    return Column_t(rowCount, values[cIdx]);
   }
 
-  bool appendRow(SqlValue *values) {
-    if (rowCount >= rowCap) {
-      rowCap = (rowCap) ? rowCap * 2 : 1;
-      SqlValue **tmp = (SqlValue **)realloc(
-          (void *)values, sizeof(SqlValue) * rowCap * colCount);
-      if (!tmp)
-        return false;
-      this->values = tmp;
+private:
+  void create(unsigned short colCount, unsigned long rowCount) {
+    this->columnNames = new char *[colCount];
+    this->values = new SqlValue *[colCount];
+    for (unsigned short i = 0; i < colCount; ++i) {
+      this->columnNames[i] = new char[MAX_COLUMN_NAME_LENGTH];
+      this->values[i] = new SqlValue[rowCount];
     }
-    memcpy((void *)this->values[rowCount], values, colCount * sizeof(SqlValue));
-    rowCount++;
-    return true;
+  }
+
+  void copy_names(char **columnNames, unsigned short count) {
+    if (count != colCount)
+      return;
+
+    for (unsigned short i = 0; i < count; ++i)
+      safeNameCopy(this->columnNames[i], columnNames[i],
+                   MAX_COLUMN_NAME_LENGTH);
+  }
+
+  void destroy() {
+    if (values)
+      delete[] values;
+    if (columnNames)
+      delete[] columnNames;
+    safeNameCopy(name, "", MAX_COLUMN_NAME_LENGTH);
+    colCount = 0;
+    rowCount = 0;
+  }
+
+  void copy_from(const Matrix_t &o) {
+    destroy();
+    safeNameCopy(name, o.name, MAX_COLUMN_NAME_LENGTH);
+    create(o.colCount, o.rowCount);
+    memcpy((void *)values, o.values, sizeof(SqlValue) * colCount * rowCount);
+    copy_names(o.columnNames, o.colCount);
+  }
+
+  void move_from(Matrix_t &&o) noexcept {
+    destroy();
+    safeNameCopy(name, o.name, MAX_COLUMN_NAME_LENGTH);
+    create(o.colCount, o.rowCount);
+    values = std::move(o.values);
+    columnNames = std::move(o.columnNames);
+    o.destroy();
   }
 };
 

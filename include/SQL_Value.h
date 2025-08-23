@@ -17,7 +17,9 @@
 struct SqlValue {
   enum Type { Null = 0, Integer = 1, Real = 2, Text = 3, Blob = 4 };
 
+  // default
   SqlValue() : kind(Type::Null) {}
+  // constructors
   SqlValue(int64_t v) : kind(Type::Integer) { st.i = v; }
   SqlValue(double v) : kind(Type::Real) { st.r = v; }
   SqlValue(const char *s) : kind(Type::Text), size(strlen(s)) {
@@ -31,6 +33,7 @@ struct SqlValue {
 
   // Copy
   SqlValue(const SqlValue &other) : kind(Type::Null) { copy_from(other); }
+  // copy assignment
   SqlValue &operator=(const SqlValue &other) {
     if (this != &other) {
       destroy();
@@ -43,6 +46,7 @@ struct SqlValue {
   SqlValue(SqlValue &&other) noexcept : kind(Type::Null) {
     move_from(std::move(other));
   }
+  // Move assignment
   SqlValue &operator=(SqlValue &&other) noexcept {
     if (this != &other) {
       destroy();
