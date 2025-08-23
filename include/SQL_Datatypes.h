@@ -80,6 +80,19 @@ struct Matrix_t {
     create(colCount, rowCount);
     copy_names((char **)columnNames, colCount);
   }
+  Matrix_t(const char *name, const unsigned short colCount,
+           const char **columnNames)
+      : colCount(colCount) {
+    safeNameCopy(this->name, name, MAX_TABLE_NAME_LENGTH);
+    create(colCount, capacity);
+    copy_names((char **)columnNames, colCount);
+  }
+  Matrix_t(const unsigned short colCount, const char **columnNames)
+      : colCount(colCount) {
+    create(colCount, capacity);
+    copy_names((char **)columnNames, colCount);
+  }
+  Matrix_t(const unsigned short colCount) { create(colCount, capacity); }
   // destructor
   ~Matrix_t() { destroy(); }
 
@@ -118,7 +131,32 @@ struct Matrix_t {
     return Column_t(rowCount, values[cIdx]);
   }
 
+  void appendRow(Row_t r) {
+    if (r.colCount != colCount)
+      return;
+
+    if (rowCount >= capacity) {
+      capacity *= 2;
+
+      Matrix_t cpy = *this;
+
+      destroy();
+
+      create(cpy.colCount, cpy.capacity);
+      capacity = cpy.capacity;
+
+      cpy.destroy();
+    }
+
+    for (unsigned short i = 0; i < colCount; ++i)
+      values[i][rowCount] = r.values[i];
+
+    rowCount++;
+  }
+
 private:
+  unsigned long capacity = 1;
+
   void create(unsigned short colCount, unsigned long rowCount) {
     this->columnNames = new char *[colCount];
     this->values = new SqlValue *[colCount];
