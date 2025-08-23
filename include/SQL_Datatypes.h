@@ -88,7 +88,7 @@ struct Matrix_t {
     copy_names((char **)columnNames, colCount);
   }
   Matrix_t(const unsigned short colCount, const char **columnNames)
-      : colCount(colCount) {
+      : colCount(colCount) { 
     create(colCount, capacity);
     copy_names((char **)columnNames, colCount);
   }
@@ -191,6 +191,9 @@ private:
 
   void copy_from(const Matrix_t &o) {
     destroy();
+    rowCount = o.rowCount;
+    colCount = o.colCount;
+    capacity = o.capacity;
     safeNameCopy(name, o.name, MAX_COLUMN_NAME_LENGTH);
     create(o.colCount, o.rowCount);
     memcpy((void *)values, o.values, sizeof(SqlValue) * colCount * rowCount);
@@ -199,6 +202,9 @@ private:
 
   void move_from(Matrix_t &&o) noexcept {
     destroy();
+    rowCount = o.rowCount;
+    colCount = o.colCount;
+    capacity = o.capacity;
     safeNameCopy(name, o.name, MAX_COLUMN_NAME_LENGTH);
     create(o.colCount, o.rowCount);
     values = std::move(o.values);
