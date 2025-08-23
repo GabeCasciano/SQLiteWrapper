@@ -74,7 +74,7 @@ struct Matrix_t {
   // construcotr
   Matrix_t(const char *name, const unsigned short colCount,
            const unsigned long rowCount, const char **columnNames)
-      : colCount(colCount), rowCount(rowCount) {
+      : colCount(colCount), rowCount(rowCount) : capacity(rowCount) {
 
     safeNameCopy(this->name, name, MAX_TABLE_NAME_LENGTH);
     create(colCount, rowCount);
@@ -88,12 +88,17 @@ struct Matrix_t {
     copy_names((char **)columnNames, colCount);
   }
   Matrix_t(const unsigned short colCount, const char **columnNames)
-      : colCount(colCount) { 
+      : colCount(colCount) {
     create(colCount, capacity);
     copy_names((char **)columnNames, colCount);
   }
   Matrix_t(const unsigned short colCount) { create(colCount, capacity); }
-  Matrix_t(const char *name, const unsigned short colCount):colCount(colCount){
+  Matrix_t(const unsigned short colCount, const unsigned long rowCount)
+      : colCount(colCount), rowCount(rowCount), capacity(rowCount) {
+    create(colCount, rowCount);
+  }
+  Matrix_t(const char *name, const unsigned short colCount)
+      : colCount(colCount) {
     safeNameCopy(this->name, name, MAX_TABLE_NAME_LENGTH);
     create(colCount, capacity);
   }
