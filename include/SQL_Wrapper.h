@@ -83,13 +83,10 @@ public:
     std::string dName_str = "(";
     std::string data_str = "VALUES (";
     for (short i = 0; i < matrix.colCount; ++i) {
-      char *str;
       bool last = i != (matrix.colCount - 1);
 
       insert(dName_str, matrix.columnNames[i], last);
       insert(data_str, data.values[i].toString(), last);
-
-      free(str);
     }
 
     sql_str = std::format("{} {} {};", sql_str, dName_str, data_str);
@@ -97,36 +94,39 @@ public:
   }
 
   inline void insertManySameTypeInto(Matrix_t matrix, Row_t *data,
-                                     long rowCount) {
+                                     unsigned long rowCount) {
+
+    if (data->colCount != matrix.colCount)
+      return;
+
+    short colCount = matrix.colCount;
+    sqlite3_stmt *stmt;
 
     execSimpleSQL("BEGIN TRANSACTION;");
 
-    short colCount = data[0].colCount;
+    for (unsigned long i = 0; i < rowCount; ++i) {
+      std::string sql_str = std::format("INSERT INTO {}", matrix.name);
+      std::string dName_str = "(";
+      std::string data_str = "VALUES (";
+      for (long i = 0; i < colCount; ++i) {
+        bool last = i != (colCount - 1);
+        insert(dName_str, matrix.columnNames[i], last);
+        insert(data_str, data->values[i].toString(), last);
+      }
 
-    sqlite3_stmt *stmt;
+      sql_str = std::format("{} {} {};", sql_str, dName_str, data_str);
 
-    std::string sql_str = std::format("INSERT INTO {}", matrix.name);
-    std::string dName_str = "(";
-    std::string data_str = "VALUES (";
-    for (long i = 0; i < colCount; ++i) {
-      char *str;
-      bool last = i != (colCount - 1);
-      insert(dName_str, matrix.columnNames[i], last);
-      insert(data_str, data->values[i].toString(), last);
+      if (sqlite3_prepare_v2(db, sql_str.c_str(), -1, &stmt, nullptr) !=
+          SQLITE_OK)
+        throw std::runtime_error(db_error_msg("Prepare"));
+
+      if (sqlite3_step(stmt) != SQLITE_DONE)
+        throw std::runtime_error(db_error_msg("Step"));
+
+      sqlite3_reset(stmt);
+
+      sqlite3_finalize(stmt);
     }
-
-    sql_str = std::format("{} {} {};", sql_str, dName_str, data_str);
-
-    if (sqlite3_prepare_v2(db, sql_str.c_str(), -1, &stmt, nullptr) !=
-        SQLITE_OK)
-      throw std::runtime_error(db_error_msg("Prepare"));
-
-    if (sqlite3_step(stmt) != SQLITE_DONE)
-      throw std::runtime_error(db_error_msg("Step"));
-
-    sqlite3_reset(stmt);
-
-    sqlite3_finalize(stmt);
 
     execSimpleSQL("COMMIT;");
   }
