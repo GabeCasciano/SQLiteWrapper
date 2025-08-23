@@ -93,6 +93,10 @@ struct Matrix_t {
     copy_names((char **)columnNames, colCount);
   }
   Matrix_t(const unsigned short colCount) { create(colCount, capacity); }
+  Matrix_t(const char *name, const unsigned short colCount):colCount(colCount){
+    safeNameCopy(this->name, name, MAX_TABLE_NAME_LENGTH);
+    create(colCount, capacity);
+  }
   // destructor
   ~Matrix_t() { destroy(); }
 
