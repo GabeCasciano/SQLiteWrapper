@@ -1,5 +1,5 @@
-#ifndef SQL_WRAPPER_H
-#define SQL_WRAPPER_H
+#ifndef SQL_DB_H
+#define SQL_DB_H
 
 #include "SQL_Datatypes.h"
 #include "SQL_Value.h"
@@ -17,10 +17,10 @@
 #include <Arduino>
 #endif
 
-class SQL_Wrapper {
+class SQL_DB {
 
 public:
-  SQL_Wrapper(const char *filename) : filename(filename) {
+  SQL_DB(const char *filename) : filename(filename) {
     // Check if we can open the DB, do so
     if (sqlite3_open_v2(filename, &db,
                         SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
@@ -31,7 +31,7 @@ public:
     sql_err = nullptr;
   }
 
-  ~SQL_Wrapper() { sqlite3_close_v2(db); }
+  ~SQL_DB() { sqlite3_close_v2(db); }
 
   inline bool tableExists(const char *tableName) {
     // This bool and call back are used to check if the table exists in the db
