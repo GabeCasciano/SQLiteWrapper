@@ -3,7 +3,6 @@
 
 #include "SQL_Utility.h"
 #include "SQL_Value.h"
-#include <cstdlib>
 #include <cstring>
 
 #define MAX_COLUMN_NAME_LENGTH (32)

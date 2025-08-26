@@ -1,6 +1,8 @@
 #ifndef SQL_VALUE_H
 #define SQL_VALUE_H
 
+#include "SQL_Wrapper.h"
+#include <cmath>
 #ifndef ARDUINO
 #include <assert.h>
 #include <cstdint>
@@ -56,6 +58,66 @@ struct SqlValue {
   }
 
   ~SqlValue() { destroy(); }
+
+  // Equality
+  bool operator==(const SqlValue &other) const {
+    if (other.kind != this->kind)
+      return false;
+
+    switch (other.kind) {
+    case Null:
+      return true;
+    case Integer:
+      return other.st.i == this->st.i;
+    case Real:
+      return other.st.r == this->st.r;
+    case Text:
+    case Blob:
+      return strcmp((char *)this->st.b, (char *)other.st.b);
+    }
+  }
+
+  bool operator!=(const SqlValue &other) const { return !(*this == other); }
+
+  // Ordering (only for numeric values)
+  bool operator<(const SqlValue &other) const {
+    if (this->kind == Type::Null && other.kind != Type::Null)
+      return true;
+
+    switch (other.kind) {
+    case Null:
+      return false;
+    case Type::Integer:
+      switch (this->kind) {
+      case Type::Integer:
+        return this->st.i < other.st.i;
+      case Type::Real:
+        return this->st.r < (double)other.st.i;
+      case Type::Text:
+      case Type::Blob:
+        return false;
+      }
+    case Type::Real:
+      switch (this->kind) {
+      case Type::Integer:
+        return ((double)this->st.i) < other.st.r;
+      case Type::Real:
+        return this->st.r < other.st.r;
+      case Type::Text:
+      case Type::Blob:
+        return false;
+      }
+    case Text:
+    case Blob:
+      return strcmp((char *)this->st.b, (char *)other.st.b);
+    }
+  }
+
+  bool operator>(const SqlValue &other) const { return other < *this; }
+
+  bool operator<=(const SqlValue &other) const { return !(other < *this); }
+
+  bool operator>=(const SqlValue &other) const { return !(*this < other); }
 
   int64_t type() { return kind; }
 
