@@ -75,8 +75,6 @@ public:
   }
 
   inline void insertInto(Matrix_t matrix, Row_t data) {
-    std::cout << "insertInto" << std::endl;
-
     if (data.colCount != matrix.colCount)
       return;
 
@@ -88,11 +86,8 @@ public:
       bool last = matrix.colCount - i > 1;
       insert(dName_str, matrix.getColumnName(i), last);
       insert(data_str, data.values[i].toString(), last);
-      std::cout << data.values[i].typeString() << " "
-                << data.values[i].as_text() << std::endl;
     }
 
-    sql_str = std::format("{} {} {};", sql_str, dName_str, data_str);
     std::cout << sql_str << std::endl;
     execSimpleSQL(sql_str.c_str());
   }

@@ -1,6 +1,7 @@
 #ifndef SQL_VALUE_H
 #define SQL_VALUE_H
 
+#include <format>
 #ifndef ARDUINO
 #include <assert.h>
 #include <cstdint>
@@ -25,15 +26,16 @@ struct SqlValue {
   // constructors
   SqlValue(int64_t v) : kind(Type::Integer) { st.i = v; }
   SqlValue(double v) : kind(Type::Real) { st.r = v; }
-  SqlValue(const char *s) : kind(Type::Text), size(strlen(s)) {
+  SqlValue(const char *s) : kind(Type::Text) {
     if (!s) {
       kind = Type::Null;
       size = 0;
       st.s = nullptr;
       return;
     }
-    st.s = new char[size + 1];
-    memcpy(st.s, s, size + 1);
+    size = strlen(s);
+    st.s = new char[size];
+    strcpy(st.s, s);
   }
   SqlValue(const void *data, size_t n) : kind(Type::Blob), size(n) {
     st.b = new uint8_t[size];
@@ -150,15 +152,16 @@ struct SqlValue {
       str = std::to_string(st.r);
       break;
     case Type::Text:
-      str = st.s;
+      str = std::format("'{}'", st.s);
+      break;
     case Type::Blob:
-      str = (char *)st.b;
+      str = std::string((char *)st.b, size);
       break;
     }
     return str.c_str();
   }
 
-  // Accessors (assert on wrong type for simplicity)
+  // Accessors (assert on wrong' type for simplicity)
   int64_t as_int() {
     assert(kind == Type::Integer);
     return st.i;
@@ -193,27 +196,6 @@ struct SqlValue {
     default:
       return SqlValue{}; // defensive
     }
-  }
-
-  // Helpers to bind to sqlite3 parameter (1-based index)
-  static int bind(sqlite3_stmt *stmt, int idx, const SqlValue &v) {
-    switch (v.kind) {
-    case Type::Null:
-      return sqlite3_bind_null(stmt, idx);
-    case Type::Integer:
-      return sqlite3_bind_int64(stmt, idx, v.st.i);
-    case Type::Real:
-      return sqlite3_bind_double(stmt, idx, v.st.r);
-    case Type::Text: {
-      // Use SQLITE_TRANSIENT so SQLite copies the bytes
-      return sqlite3_bind_text(stmt, idx, v.st.s, v.size, SQLITE_TRANSIENT);
-    }
-    case Type::Blob: {
-      const void *p = v.st.b;
-      return sqlite3_bind_blob(stmt, idx, p, v.size, SQLITE_TRANSIENT);
-    }
-    }
-    return SQLITE_MISUSE; // unreachable
   }
 
 private:
@@ -256,10 +238,8 @@ private:
       st.r = o.st.r;
       break;
     case Type::Text:
-      std::cout << o.st.s << " ";
-      st.s = new char[size + 1];
-      memcpy(st.s, o.st.s, size + 1);
-      std::cout << st.s << std::endl;
+      st.s = new char[size];
+      strcpy(st.s, o.st.s);
       break;
     case Type::Blob:
       st.b = new uint8_t[size];

@@ -65,23 +65,22 @@ int main() {
     SQL_DB sql("test.db");
 
     const char *colNames[2] = {"name", "value"};
+    const char *testName = "TestName";
     Matrix_t matrix = Matrix_t("test", 2, colNames);
     Row_t data = Row_t(2);
-
-    data.values[0] = SqlValue((const char *)"Test");
-    data.values[1] = (int64_t)1;
-
-    println("3");
+    data.insertValue(testName, 0);
+    data.insertValue((int64_t)1, 1);
 
     sql.insertInto(matrix, data);
-    println("4");
   };
   tryFunction(open_inset_table, "Open, Create, Insert");
 
   auto retrieve_table = []() {
     SQL_DB sql("test.db");
 
+    println("1");
     Matrix_t matrix = sql.selectFromTable("test");
+    println("2");
     println(matrix.toString());
   };
   tryFunction(retrieve_table, "Read db");

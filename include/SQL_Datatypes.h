@@ -42,6 +42,13 @@ struct Row_t {
     return *this;
   }
 
+  void insertValue(SqlValue value, unsigned short cIdx) {
+    if (cIdx >= colCount)
+      return;
+    if (values != nullptr)
+      values[cIdx] = value;
+  }
+
 private:
   void copy_data(SqlValue **src, unsigned long rIdx) {
     if (!values)
@@ -264,7 +271,6 @@ private:
   }
 
   void destroy() {
-    std::cout << "destroy" << std::endl;
     if (values != nullptr) {
       for (unsigned short i = 0; i < colCount; ++i)
         delete[] values[i];
@@ -283,7 +289,6 @@ private:
   }
 
   void copy_from(const Matrix_t &o) {
-    std::cout << "copy_from" << std::endl;
     destroy();
     rowCount = o.rowCount;
     colCount = o.colCount;
@@ -295,8 +300,6 @@ private:
   }
 
   void move_from(Matrix_t &&o) noexcept {
-    std::cout << "move_from" << std::endl;
-
     destroy();
     rowCount = o.rowCount;
     colCount = o.colCount;
