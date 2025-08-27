@@ -13,6 +13,7 @@
 #else
 #include <Arduino>
 #endif
+#include <iostream>
 #include <sqlite3.h>
 
 namespace SQL {
@@ -28,6 +29,7 @@ struct SqlValue {
   SqlValue(const char *s) : kind(Type::Text), size(strlen(s)) {
     st.s = new char[size];
     strcpy(st.s, s);
+    std::cout << "Test:" << st.s << std::endl;
   }
   SqlValue(const void *data, size_t n) : kind(Type::Blob), size(n) {
     st.b = new uint8_t[size];
@@ -151,8 +153,10 @@ struct SqlValue {
       str = std::to_string(st.r);
       break;
     case Type::Text:
-    case Type::Blob:
       str = st.s;
+      std::cout << "Test:" << st.s << std::endl;
+    case Type::Blob:
+      str = (char *)st.b;
       break;
     }
     return str.c_str();

@@ -1,8 +1,11 @@
+#include <cstring>
 #include <exception>
 #include <format>
 #include <functional>
 #include <iostream>
 
+#include "SQL_Datatypes.h"
+#include "SQL_Value.h"
 #include "SQL_Wrapper.h"
 #include <stdexcept>
 
@@ -52,36 +55,34 @@ int main() {
 
   auto create_table = []() {
     SQL_DB sql("test.db");
-    Columns names;
-
-    names.push_back(makeColumn(makeNameAndData("name", ""), true));
-    names.push_back(makeColumn(makeNameAndData("value", ""), false));
-
-    sql.createTable("test", names);
+    const char *colNames[2] = {"name", "value"};
+    Matrix_t matrix = Matrix_t("test", 2, colNames);
+    sql.createTable(matrix, 0);
   };
   tryFunction(create_table, "Open, Create");
 
   auto open_inset_table = []() {
     SQL_DB sql("test.db");
 
-    RowOfData data;
-    data.push_back(makeNameAndData("name", "test_name"));
-    data.push_back(makeNameAndData("value", "test_value"));
+    const char *colNames[2] = {"name", "value"};
+    Matrix_t matrix = Matrix_t("test", 2, colNames);
+    Row_t data = Row_t(2);
+
+    data.values[0] = SqlValue((const char *)"Test");
+    data.values[1] = (int64_t)1;
+
+    println("3");
+
+    sql.insertInto(matrix, data);
+    println("4");
   };
   tryFunction(open_inset_table, "Open, Create, Insert");
 
   auto retrieve_table = []() {
     SQL_DB sql("test.db");
-    Table data = sql.selectAllFromTable("test");
 
-    println(std::format("Num Cols: {}", data.size()));
-    println(std::format("Num Rows: {}", data[0].second.size()));
-
-    for (size_t r = 0; r < data[0].second.size(); ++r) {
-      for (size_t c = 0; c < data.size(); ++c) {
-        println(sqlValueToString(data[c].second[r]));
-      }
-    }
+    Matrix_t matrix = sql.selectFromTable("test");
+    println(matrix.toString());
   };
   tryFunction(retrieve_table, "Read db");
 

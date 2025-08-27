@@ -5,6 +5,7 @@
 
 #ifndef ARDUINO
 #include <format>
+#include <iostream>
 #include <stdexcept>
 #else
 #include <Arduino>
@@ -26,7 +27,11 @@ public:
     sql_err = nullptr;
   }
 
-  ~SQL_DB() { sqlite3_close_v2(db); }
+  ~SQL_DB() {
+    sqlite3_close_v2(db);
+    if (sql_err)
+      sqlite3_free(sql_err);
+  }
 
   inline bool tableExists(const char *tableName) {
     // This bool and call back are used to check if the table exists in the db
@@ -69,6 +74,7 @@ public:
   }
 
   inline void insertInto(Matrix_t matrix, Row_t data) {
+    std::cout << "insertInto" << std::endl;
 
     if (data.colCount != matrix.colCount)
       return;
@@ -77,13 +83,15 @@ public:
     std::string dName_str = "(";
     std::string data_str = "VALUES (";
     for (short i = 0; i < matrix.colCount; ++i) {
-      bool last = i != (matrix.colCount - 1);
+      bool last = matrix.colCount - i > 1;
+      std::cout << last << std::endl;
 
-      insert(dName_str, matrix.columnNames[i], last);
+      insert(dName_str, matrix.getColumnName(i), last);
       insert(data_str, data.values[i].toString(), last);
     }
 
     sql_str = std::format("{} {} {};", sql_str, dName_str, data_str);
+    std::cout << sql_str << std::endl;
     execSimpleSQL(sql_str.c_str());
   }
 
@@ -138,7 +146,8 @@ private:
   char *sql_err;
 
   inline void insert(std::string &dest, const char *str, bool last) {
-    dest += std::format("{}{}", str, (!last) ? ", " : ")");
+    std::cout << "insert" << std::endl;
+    dest += std::format("{}{}", str, (last) ? ", " : ")");
   }
 
   inline Matrix_t queryToTable(const char *query) {
@@ -179,7 +188,6 @@ private:
 
   inline std::string sql_error() {
     std::string str = std::format("SQL Error: {}", sql_err);
-    sqlite3_free(sql_err);
     return str;
   }
 };

@@ -3,9 +3,11 @@
 
 #include "SQL_Utility.h"
 #include "SQL_Value.h"
+#include <algorithm>
 
 #ifndef ARDUINO
 #include <cstring>
+#include <format>
 #endif
 
 #define MAX_COLUMN_NAME_LENGTH (32)
@@ -15,7 +17,7 @@ namespace SQL {
 
 struct Row_t {
   unsigned short colCount = 0;
-  SqlValue *values;
+  SqlValue *values = nullptr;
   Row_t() = default;
   Row_t(unsigned short colCount) : colCount(colCount) {
     this->values = new SqlValue[colCount];
@@ -25,10 +27,19 @@ struct Row_t {
     this->values = new SqlValue[colCount];
     copy_data(src, rIdx);
   }
-  ~Row_t() {
-    if (values)
-      delete[] values;
-    colCount = 0;
+  ~Row_t() { destroy(); }
+
+  Row_t(const Row_t &other) { copy_from(other); }
+  Row_t &operator=(const Row_t &other) {
+    if (this != &other)
+      copy_from(other);
+    return *this;
+  }
+  Row_t(Row_t &&other) { move_from(std::move(other)); }
+  Row_t &operator=(Row_t &&other) {
+    if (this != &other)
+      move_from(std::move(other));
+    return *this;
   }
 
 private:
@@ -39,11 +50,38 @@ private:
     for (unsigned i = 0; i < colCount; ++i)
       values[i] = src[i][rIdx];
   }
+
+  void destroy() {
+    if (values != nullptr) {
+      delete[] values;
+      values = nullptr;
+    }
+    colCount = 0;
+  }
+
+  void copy_from(const Row_t &o) {
+    destroy();
+    this->colCount = o.colCount;
+    this->values = new SqlValue[colCount];
+
+    for (unsigned short i = 0; i < colCount; ++i) {
+
+      values[i] = o.values[i];
+    }
+  }
+
+  void move_from(Row_t &&o) {
+    destroy();
+    this->colCount = o.colCount;
+    this->values = new SqlValue[colCount];
+    this->values = std::move(o.values);
+    o.destroy();
+  }
 };
 
 struct Column_t {
   unsigned long rowCount = 0;
-  SqlValue *values;
+  SqlValue *values = nullptr;
   Column_t() = default;
   Column_t(unsigned long rowCount) : rowCount(rowCount) {
     values = new SqlValue[rowCount];
@@ -53,8 +91,10 @@ struct Column_t {
     copy_data(src);
   }
   ~Column_t() {
-    if (values)
+    if (values != nullptr) {
       delete[] values;
+      values = nullptr;
+    }
   }
 
 private:
@@ -70,8 +110,8 @@ struct Matrix_t {
   unsigned short colCount = 0;
   unsigned long rowCount = 0;
   char name[MAX_TABLE_NAME_LENGTH];
-  SqlValue **values;
-  char **columnNames;
+  SqlValue **values = nullptr;
+  char **columnNames = nullptr;
 
   // default constructor
   Matrix_t() = default;
@@ -144,6 +184,13 @@ struct Matrix_t {
     return Column_t(rowCount, values[cIdx]);
   }
 
+  const char *getColumnName(unsigned short cIdx) {
+    if (cIdx >= colCount)
+      return "";
+
+    return columnNames[cIdx];
+  }
+
   void appendRow(Row_t r) {
     if (r.colCount != colCount)
       return;
@@ -167,8 +214,36 @@ struct Matrix_t {
     rowCount++;
   }
 
+  const char *toString(bool f = false) {
+
+#ifndef ARDUINO
+
+    if (strlen(toStr) > 0 && !f)
+      return toStr;
+
+    std::string str =
+        std::format("Name: {}, Shape: ({}, {}) \n", name, colCount, rowCount);
+
+    auto addBars = [&](SqlValue *arr) {
+      std::string _str = "|";
+      for (unsigned short i = 0; i < colCount; ++i) {
+        str += std::format(" {} |", arr[i].toString());
+      }
+      return _str;
+    };
+    str += std::format("{}\n", addBars((SqlValue *)columnNames));
+    for (unsigned long i = 0; i < rowCount; ++i)
+      str += std::format("{}\n", addBars(this->getRow(i).values));
+
+    toStr = str.c_str();
+    return toStr;
+
+#endif
+  }
+
 private:
   unsigned long capacity = 1;
+  const char *toStr;
 
   void create(unsigned short colCount, unsigned long rowCount) {
     this->columnNames = new char *[colCount];
@@ -189,16 +264,26 @@ private:
   }
 
   void destroy() {
-    if (values)
+    std::cout << "destroy" << std::endl;
+    if (values != nullptr) {
+      for (unsigned short i = 0; i < colCount; ++i)
+        delete[] values[i];
       delete[] values;
-    if (columnNames)
+      values = nullptr;
+    }
+    if (columnNames != nullptr) {
+      for (unsigned short i = 0; i < colCount; ++i)
+        delete[] columnNames[i];
       delete[] columnNames;
+      columnNames = nullptr;
+    }
     safeNameCopy(name, "", MAX_COLUMN_NAME_LENGTH);
     colCount = 0;
     rowCount = 0;
   }
 
   void copy_from(const Matrix_t &o) {
+    std::cout << "copy_from" << std::endl;
     destroy();
     rowCount = o.rowCount;
     colCount = o.colCount;
@@ -210,6 +295,8 @@ private:
   }
 
   void move_from(Matrix_t &&o) noexcept {
+    std::cout << "move_from" << std::endl;
+
     destroy();
     rowCount = o.rowCount;
     colCount = o.colCount;
