@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-std::string db_filename = "settings.db";
+std::string db_filename = "test.db";
 sqlite3 *db = nullptr;
 
 int main(int argc, char *argv[]) {
@@ -51,20 +51,8 @@ int main(int argc, char *argv[]) {
     sqlite3_close(db);
   };
 
-  const char *drop_str = "DROP TABLE IF EXISTS settings;";
+  const char *drop_str = "DROP TABLE IF EXISTS testt;";
   if (sqlite3_exec(db, drop_str, nullptr, nullptr, &err) != SQLITE_OK) {
-    sql_exec_error();
-    return 1;
-  }
-
-  // Create a new table
-
-  const char *create_str = "CREATE TABLE IF NOT EXISTS settings("
-                           "name TEXT PRIMARY KEY,"
-                           "value TEXT NOT NULL,"
-                           "dType INTEGER NOT NULL);";
-
-  if (sqlite3_exec(db, create_str, nullptr, nullptr, &err) != SQLITE_OK) {
     sql_exec_error();
     return 1;
   }

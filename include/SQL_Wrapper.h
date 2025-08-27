@@ -88,6 +88,8 @@ public:
       insert(data_str, data.values[i].toString(), last);
     }
 
+    sql_str = std::format("{} {} {}", sql_str, dName_str, data_str);
+
     std::cout << sql_str << std::endl;
     execSimpleSQL(sql_str.c_str());
   }
@@ -157,16 +159,20 @@ private:
     selection = Matrix_t(colCount);
 
     for (int i = 0; i < colCount; ++i) {
-      safeNameCopy(selection.columnNames[i], sqlite3_column_name(stmt, i),
-                   MAX_COLUMN_NAME_LENGTH);
+      std::cout << sqlite3_column_name(stmt, i) << std::endl;
+      snprintf(selection.columnNames[i], MAX_COLUMN_NAME_LENGTH, "%s",
+               sqlite3_column_name(stmt, i));
     }
 
     Row_t r = Row_t(colCount);
     do {
       for (int i = 0; i < colCount; ++i) {
+        std::cout << "1";
         r.values[i].from_column(stmt, i);
+        std::cout << "2";
       }
       selection.appendRow(r);
+      std::cout << "3";
     } while (sqlite3_step(stmt) == SQLITE_ROW);
 
     sqlite3_finalize(stmt);
