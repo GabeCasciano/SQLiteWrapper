@@ -3,7 +3,6 @@
 
 #ifndef ARDUINO
 #include <assert.h>
-#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -27,13 +26,18 @@ struct SqlValue {
   SqlValue(int64_t v) : kind(Type::Integer) { st.i = v; }
   SqlValue(double v) : kind(Type::Real) { st.r = v; }
   SqlValue(const char *s) : kind(Type::Text), size(strlen(s)) {
-    st.s = new char[size];
-    strcpy(st.s, s);
-    std::cout << "Test:" << st.s << std::endl;
+    if (!s) {
+      kind = Type::Null;
+      size = 0;
+      st.s = nullptr;
+      return;
+    }
+    st.s = new char[size + 1];
+    memcpy(st.s, s, size + 1);
   }
   SqlValue(const void *data, size_t n) : kind(Type::Blob), size(n) {
     st.b = new uint8_t[size];
-    memcpy((void *)&st.b, data, size);
+    memcpy(st.b, data, size);
   }
 
   // Copy
@@ -64,56 +68,49 @@ struct SqlValue {
 
   // Equality
   bool operator==(const SqlValue &other) const {
-    if (other.kind != this->kind)
+    if (kind != other.kind)
       return false;
 
-    switch (other.kind) {
+    switch (kind) {
     case Null:
       return true;
     case Integer:
-      return other.st.i == this->st.i;
+      return st.i == other.st.i;
     case Real:
-      return other.st.r == this->st.r;
+      return st.r == other.st.r;
     case Text:
+      return std::strcmp(st.s, other.st.s) == 0;
     case Blob:
-      return strcmp((char *)this->st.b, (char *)other.st.b);
+      return size == other.size && std::memcmp(st.b, other.st.b, size) == 0;
     }
-  }
 
+    return false; // unreachable
+  }
   bool operator!=(const SqlValue &other) const { return !(*this == other); }
 
   // Ordering (only for numeric values)
   bool operator<(const SqlValue &other) const {
-    if (this->kind == Type::Null && other.kind != Type::Null)
-      return true;
-
-    switch (other.kind) {
-    case Null:
+    if (kind == Null)
+      return other.kind != Null;
+    if (other.kind == Null)
       return false;
-    case Type::Integer:
-      switch (this->kind) {
-      case Type::Integer:
-        return this->st.i < other.st.i;
-      case Type::Real:
-        return this->st.r < (double)other.st.i;
-      case Type::Text:
-      case Type::Blob:
-        return false;
-      }
-    case Type::Real:
-      switch (this->kind) {
-      case Type::Integer:
-        return ((double)this->st.i) < other.st.r;
-      case Type::Real:
-        return this->st.r < other.st.r;
-      case Type::Text:
-      case Type::Blob:
-        return false;
-      }
-    case Text:
-    case Blob:
-      return strcmp((char *)this->st.b, (char *)other.st.b);
+
+    if (kind == Integer && other.kind == Integer)
+      return st.i < other.st.i;
+    if (kind == Real && other.kind == Real)
+      return st.r < other.st.r;
+    if (kind == Integer && other.kind == Real)
+      return (double)st.i < other.st.r;
+    if (kind == Real && other.kind == Integer)
+      return st.r < (double)other.st.i;
+
+    if (kind == Text && other.kind == Text)
+      return strcmp(st.s, other.st.s) < 0;
+    if (kind == Blob && other.kind == Blob) {
+      const int cmp = memcmp(st.b, other.st.b, std::min(size, other.size));
+      return (cmp < 0) || (cmp == 0 && size < other.size);
     }
+    return false;
   }
 
   bool operator>(const SqlValue &other) const { return other < *this; }
@@ -154,7 +151,6 @@ struct SqlValue {
       break;
     case Type::Text:
       str = st.s;
-      std::cout << "Test:" << st.s << std::endl;
     case Type::Blob:
       str = (char *)st.b;
       break;
@@ -171,7 +167,7 @@ struct SqlValue {
     assert(kind == Type::Real);
     return st.r;
   }
-  const char *as_text() const { return (const char *)&st.s; }
+  const char *as_text() const { return (const char *)st.s; }
   const uint8_t *as_blob() const { return (uint8_t *)st.b; }
 
   // Helpers to create from sqlite3 column
@@ -237,18 +233,18 @@ private:
   void destroy() {
     switch (kind) {
     case Type::Text:
-      delete st.s;
+      delete[] st.s;
       break;
     case Type::Blob:
-      delete st.b;
+      delete[] st.b;
       break;
-    default:
-      st.i = 0;
     }
     kind = Type::Null;
+    size = 0;
   }
 
   void copy_from(const SqlValue &o) {
+    size = o.size;
     kind = o.kind;
     switch (o.kind) {
     case Type::Null:
@@ -260,18 +256,21 @@ private:
       st.r = o.st.r;
       break;
     case Type::Text:
-      st.s = new char[o.size];
-      strcpy(st.s, o.st.s);
+      std::cout << o.st.s << " ";
+      st.s = new char[size + 1];
+      memcpy(st.s, o.st.s, size + 1);
+      std::cout << st.s << std::endl;
       break;
     case Type::Blob:
-      st.b = new uint8_t[o.size];
-      memcpy((void *)&st.b, o.st.b, o.size);
+      st.b = new uint8_t[size];
+      memcpy((void *)&st.b, o.st.b, size);
       break;
     }
   }
 
   void move_from(SqlValue &&o) noexcept {
     kind = o.kind;
+    size = o.size;
     switch (o.kind) {
     case Type::Null:
       break;
@@ -282,11 +281,11 @@ private:
       st.r = o.st.r;
       break;
     case Type::Text:
-      st.s = new char[o.size];
+      st.s = new char[size];
       st.s = std::move(o.st.s);
       break;
     case Type::Blob:
-      st.b = new uint8_t[o.size];
+      st.b = new uint8_t[size];
       st.b = std::move(o.st.b);
       break;
     }

@@ -2,6 +2,7 @@
 #define SQL_DB_H
 
 #include "SQL_Datatypes.h"
+#include <ostream>
 
 #ifndef ARDUINO
 #include <format>
@@ -82,12 +83,13 @@ public:
     std::string sql_str = std::format("INSERT INTO {}", matrix.name);
     std::string dName_str = "(";
     std::string data_str = "VALUES (";
+    std::cout << matrix.colCount << std::endl;
     for (short i = 0; i < matrix.colCount; ++i) {
       bool last = matrix.colCount - i > 1;
-      std::cout << last << std::endl;
-
       insert(dName_str, matrix.getColumnName(i), last);
       insert(data_str, data.values[i].toString(), last);
+      std::cout << data.values[i].typeString() << " "
+                << data.values[i].as_text() << std::endl;
     }
 
     sql_str = std::format("{} {} {};", sql_str, dName_str, data_str);
@@ -146,7 +148,6 @@ private:
   char *sql_err;
 
   inline void insert(std::string &dest, const char *str, bool last) {
-    std::cout << "insert" << std::endl;
     dest += std::format("{}{}", str, (last) ? ", " : ")");
   }
 
