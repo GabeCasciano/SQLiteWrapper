@@ -9,7 +9,6 @@ CXXFLAGS += $(addprefix -I, $(INCLUDE_DIRS))
 # Libraries
 LDLIBS := -pthread -lsqlite3
 
-
 # Files
 MAIN_SRC := src/main.cpp
 TEST_SRC := src/test.cpp 
@@ -31,10 +30,10 @@ test: $(TEST_OUT)
 
 reset: $(RST_OUT)
 
-all: out test reset
+all: build out test reset
 
 # Link object file to create bina$(OUT): $(DAEMON_OBJ)
-$(MAIN_OUT): $(MAIN_BJ)
+$(MAIN_OUT): $(MAIN_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDLIBS)
 
 $(TEST_OUT): $(TEST_OBJ)

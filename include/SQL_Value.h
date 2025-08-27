@@ -1,10 +1,9 @@
 #ifndef SQL_VALUE_H
 #define SQL_VALUE_H
 
-#include "SQL_Wrapper.h"
-#include <cmath>
 #ifndef ARDUINO
 #include <assert.h>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -15,6 +14,8 @@
 #include <Arduino>
 #endif
 #include <sqlite3.h>
+
+namespace SQL {
 
 struct SqlValue {
   enum Type { Null = 0, Integer = 1, Real = 2, Text = 3, Blob = 4 };
@@ -288,5 +289,6 @@ private:
     o.destroy();
   }
 };
+} // namespace SQL
 
 #endif

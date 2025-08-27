@@ -3,10 +3,15 @@
 
 #include "SQL_Utility.h"
 #include "SQL_Value.h"
+
+#ifndef ARDUINO
 #include <cstring>
+#endif
 
 #define MAX_COLUMN_NAME_LENGTH (32)
 #define MAX_TABLE_NAME_LENGTH (32)
+
+namespace SQL {
 
 struct Row_t {
   unsigned short colCount = 0;
@@ -73,7 +78,7 @@ struct Matrix_t {
   // construcotr
   Matrix_t(const char *name, const unsigned short colCount,
            const unsigned long rowCount, const char **columnNames)
-      : colCount(colCount), rowCount(rowCount) : capacity(rowCount) {
+      : colCount(colCount), rowCount(rowCount), capacity(rowCount) {
 
     safeNameCopy(this->name, name, MAX_TABLE_NAME_LENGTH);
     create(colCount, rowCount);
@@ -216,5 +221,6 @@ private:
     o.destroy();
   }
 };
+} // namespace SQL
 
 #endif

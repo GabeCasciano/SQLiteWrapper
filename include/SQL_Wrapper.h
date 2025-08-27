@@ -2,21 +2,15 @@
 #define SQL_DB_H
 
 #include "SQL_Datatypes.h"
-#include "SQL_Value.h"
-#include "SQLiteWrapper/include/SQL_Utility.h"
 
 #ifndef ARDUINO
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <format>
-#include <iostream>
 #include <stdexcept>
-#include <utility>
 #else
 #include <Arduino>
 #endif
+
+namespace SQL {
 
 class SQL_DB {
 
@@ -189,4 +183,6 @@ private:
     return str;
   }
 };
+
+} // namespace SQL
 #endif

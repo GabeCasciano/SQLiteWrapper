@@ -3,9 +3,10 @@
 #include <functional>
 #include <iostream>
 
-#include <SQL_Wrapper.h>
+#include "SQL_Wrapper.h"
 #include <stdexcept>
-#include <utility>
+
+using namespace SQL;
 
 enum TestCond_t { START = 1, RUNNING = 2, SUCCESS = 3, FAIL = 4 };
 
@@ -43,14 +44,14 @@ void tryFunction(std::function<void()> func, std::string testName) {
 int main() {
   println("SQL Wrapper test");
 
-  auto create_db = []() { SQL_Wrapper sql("test.db"); };
+  auto create_db = []() { SQL_DB sql("test.db"); };
   tryFunction(create_db, "Create DB");
 
-  auto open_db = []() { SQL_Wrapper sql("test.db"); };
+  auto open_db = []() { SQL_DB sql("test.db"); };
   tryFunction(open_db, "Openning DB");
 
   auto create_table = []() {
-    SQL_Wrapper sql("test.db");
+    SQL_DB sql("test.db");
     Columns names;
 
     names.push_back(makeColumn(makeNameAndData("name", ""), true));
@@ -61,7 +62,7 @@ int main() {
   tryFunction(create_table, "Open, Create");
 
   auto open_inset_table = []() {
-    SQL_Wrapper sql("test.db");
+    SQL_DB sql("test.db");
 
     RowOfData data;
     data.push_back(makeNameAndData("name", "test_name"));
@@ -70,18 +71,17 @@ int main() {
   tryFunction(open_inset_table, "Open, Create, Insert");
 
   auto retrieve_table = []() {
-    SQL_Wrapper sql("test.db");
+    SQL_DB sql("test.db");
     Table data = sql.selectAllFromTable("test");
 
     println(std::format("Num Cols: {}", data.size()));
     println(std::format("Num Rows: {}", data[0].second.size()));
 
-    for(size_t r = 0 ; r < data[0].second.size(); ++r){
-      for(size_t c = 0; c < data.size(); ++c){
+    for (size_t r = 0; r < data[0].second.size(); ++r) {
+      for (size_t c = 0; c < data.size(); ++c) {
         println(sqlValueToString(data[c].second[r]));
       }
     }
-
   };
   tryFunction(retrieve_table, "Read db");
 
