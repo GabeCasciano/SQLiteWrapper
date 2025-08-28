@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <sched.h>
 
 namespace SQL {
 
@@ -23,32 +24,28 @@ struct Matrix_t {
   Matrix_t() = default;
   // construcotr
   Matrix_t(const char *name, const size_t colCount, const size_t rowCount,
-           const char *columnNames)
-      : colCount(colCount), rowCount(rowCount), capacity(rowCount) {
+           const char *columnNames) {
 
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
     create(colCount, rowCount);
     copy_names((char *)columnNames, colCount);
   }
-  Matrix_t(const char *name, const size_t colCount, const char *columnNames)
-      : colCount(colCount) {
+  Matrix_t(const char *name, const size_t colCount, const char *columnNames) {
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
-    create(colCount, capacity);
+    create(colCount, 1);
     copy_names((char *)columnNames, colCount);
   }
-  Matrix_t(const size_t colCount, const char *columnNames)
-      : colCount(colCount) {
-    create(colCount, capacity);
+  Matrix_t(const size_t colCount, const char *columnNames) {
+    create(colCount, 1);
     copy_names((char *)columnNames, colCount);
   }
   Matrix_t(const size_t colCount) { create(colCount, capacity); }
-  Matrix_t(const size_t colCount, const size_t rowCount)
-      : colCount(colCount), rowCount(rowCount), capacity(rowCount) {
+  Matrix_t(const size_t colCount, const size_t rowCount) {
     create(colCount, rowCount);
   }
-  Matrix_t(const char *name, const size_t colCount) : colCount(colCount) {
+  Matrix_t(const char *name, const size_t colCount) {
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
-    create(colCount, capacity);
+    create(colCount, 1);
   }
   // destructor
   ~Matrix_t() { destroy(); }
@@ -94,20 +91,14 @@ struct Matrix_t {
       return;
 
     if (rowCount >= capacity) {
-      capacity *= 2;
-
       Matrix_t cpy = *this;
-
-      destroy();
-
-      create(cpy.colCount, cpy.capacity);
-      capacity = cpy.capacity;
-
-      cpy.destroy();
+      cpy.capacity *= 2;
+      copy_from(cpy);
     }
 
+    SqlValue *write_ptr = values;
     for (size_t i = 0; i < colCount; ++i)
-      values[i][rowCount] = r.values[i];
+      values[rowCount * colCount + i] = r.values[i];
 
     rowCount++;
   }
@@ -179,10 +170,9 @@ struct Matrix_t {
 private:
   size_t capacity = 1;
 
-  void create(size_t colCount, size_t rowCount) {
+  void create(size_t colCount, size_t capacity) {
     this->colCount = colCount;
-    this->rowCount = rowCount;
-    this->values = new SqlValue[rowCount * colCount];
+    this->values = new SqlValue[capacity * colCount];
     this->columnNames = new char[colCount * MAX_COLUMN_NAME_LENGTH];
   }
 
@@ -205,6 +195,7 @@ private:
     sprintf(name, "");
     colCount = 0;
     rowCount = 0;
+    capacity = 0;
   }
 
   void copy_from(const Matrix_t &o) {
@@ -213,7 +204,7 @@ private:
     colCount = o.colCount;
     capacity = o.capacity;
     strcpy(name, o.name);
-    create(o.colCount, o.rowCount);
+    create(o.colCount, o.capacity);
     memcpy((void *)values, o.values, sizeof(SqlValue) * colCount * rowCount);
     copy_names(o.columnNames, o.colCount);
   }
@@ -224,7 +215,7 @@ private:
     colCount = o.colCount;
     capacity = o.capacity;
     strcpy(name, o.name);
-    create(o.colCount, o.rowCount);
+    create(o.colCount, o.capacity);
     values = std::move(o.values);
     columnNames = std::move(o.columnNames);
     o.destroy();
