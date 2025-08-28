@@ -1,19 +1,17 @@
 #ifndef SQL_DB_H
 #define SQL_DB_H
 
-#include "SQL_Datatypes.h"
+#include "SQL_Matrix.h"
+
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ostream>
 
 #ifndef ARDUINO
 #include <format>
 #include <iostream>
 #include <stdexcept>
-#else
-#include <Arduino>
 #endif
 
 namespace SQL {
@@ -61,7 +59,7 @@ public:
   }
 
   inline void createTable(Matrix_t matrix, unsigned short primaryKey) {
-    const char *fmt_str = "CREATE TABLR IF NOT EXISTS %s (%s);";
+    const char *fmt_str = "CREATE TABLE IF NOT EXISTS %s (%s);";
     // example "name TEXT PRIMARY KEY,"
     // example "value REAL NOT NULL);"
     const char *names_fmt_str = "%s %s %s%s";
@@ -96,15 +94,19 @@ public:
   }
 
   inline void dropTable(const char *tableName) {
-    execSimpleSQL(
-        strdup(std::format("DROP TABLE IF EXISTS {};", tableName).c_str()));
+    const char *fmt_str = "DROP TABLE IF EXISTS %s;";
+    size_t bufSize = snprintf(NULL, 0, fmt_str, tableName);
+    char *buffer = (char *)malloc(bufSize);
+    sprintf(buffer, fmt_str, tableName);
+    execSimpleSQL(buffer);
   }
 
   inline void insertInto(Matrix_t matrix, Row_t data) {
     if (data.colCount != matrix.colCount)
       return;
 
-    std::string sql_str = std::format("INSERT INTO {}", matrix.name);
+    const char *sql_str = "INSERT INTO %s (%s) VALUES (%s);";
+
     std::string dName_str = "(";
     std::string data_str = "VALUES (";
     for (short i = 0; i < matrix.colCount; ++i) {

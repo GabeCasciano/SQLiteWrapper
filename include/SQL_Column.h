@@ -6,10 +6,10 @@
 
 namespace SQL {
 struct Column_t {
-  unsigned long rowCount = 0;
+  size_t rowCount = 0;
   SqlValue *values = nullptr;
   Column_t() = default;
-  Column_t(unsigned long rowCount) : rowCount(rowCount) {
+  Column_t(size_t rowCount) : rowCount(rowCount) {
     values = new SqlValue[rowCount];
   }
   ~Column_t() { destroy(); }
@@ -65,7 +65,7 @@ private:
     rowCount = o.rowCount;
     values = new SqlValue[rowCount];
 
-    for (unsigned long i = 0; i < rowCount; ++i)
+    for (size_t i = 0; i < rowCount; ++i)
       values[i] = o.values[i];
   }
 
@@ -74,7 +74,7 @@ private:
     rowCount = o.rowCount;
     values = new SqlValue[rowCount];
 
-    for (unsigned long i = 0; i < rowCount; ++i)
+    for (size_t i = 0; i < rowCount; ++i)
       values[i] = std::move(o.values[i]);
 
     o.destroy();

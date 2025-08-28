@@ -21,7 +21,7 @@ struct SqlValue {
   // default
   SqlValue() : kind(Type::Null) {}
   // constructors
-  SqlValue(int64_t v) : kind(Type::Integer) { st.i = v; }
+  SqlValue(long v) : kind(Type::Integer) { st.i = v; }
   SqlValue(double v) : kind(Type::Real) { st.r = v; }
   SqlValue(const char *s) : kind(Type::Text) {
     if (!s) {
@@ -118,7 +118,7 @@ struct SqlValue {
 
   bool operator>=(const SqlValue &other) const { return !(*this < other); }
 
-  int64_t type() { return kind; }
+  long type() { return kind; }
 
   const char *typeString() {
     switch (kind) {
@@ -162,7 +162,7 @@ struct SqlValue {
   }
 
   // Accessors (assert on wrong' type for simplicity)
-  int64_t as_int() {
+  long as_int() {
     assert(kind == Type::Integer);
     return st.i;
   }
@@ -180,7 +180,7 @@ struct SqlValue {
     case SQLITE_NULL:
       return SqlValue{};
     case SQLITE_INTEGER:
-      return SqlValue(static_cast<int64_t>(sqlite3_column_int64(stmt, col)));
+      return SqlValue(static_cast<long>(sqlite3_column_int64(stmt, col)));
     case SQLITE_FLOAT:
       return SqlValue(sqlite3_column_double(stmt, col));
     case SQLITE_TEXT: {
@@ -203,7 +203,7 @@ private:
   size_t size; // in bytes
 
   union Storage {
-    int64_t i;
+    long i;
     double r;
     char *s;    // non-trivial -> placement new + manual dtor
     uint8_t *b; // non-trivial

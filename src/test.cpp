@@ -4,8 +4,6 @@
 #include <functional>
 #include <iostream>
 
-#include "SQL_Datatypes.h"
-#include "SQL_Value.h"
 #include "SQL_Wrapper.h"
 #include <stdexcept>
 

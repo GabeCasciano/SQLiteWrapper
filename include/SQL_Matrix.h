@@ -13,8 +13,8 @@ namespace SQL {
 
 struct Matrix_t {
 
-  unsigned short colCount = 0;
-  unsigned long rowCount = 0;
+  size_t colCount = 0;
+  size_t rowCount = 0;
   char name[MAX_TABLE_NAME_LENGTH];
   SqlValue *values = nullptr;
   char *columnNames = nullptr;
@@ -22,33 +22,31 @@ struct Matrix_t {
   // default constructor
   Matrix_t() = default;
   // construcotr
-  Matrix_t(const char *name, const unsigned short colCount,
-           const unsigned long rowCount, const char *columnNames)
+  Matrix_t(const char *name, const size_t colCount, const size_t rowCount,
+           const char *columnNames)
       : colCount(colCount), rowCount(rowCount), capacity(rowCount) {
 
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
     create(colCount, rowCount);
     copy_names((char *)columnNames, colCount);
   }
-  Matrix_t(const char *name, const unsigned short colCount,
-           const char *columnNames)
+  Matrix_t(const char *name, const size_t colCount, const char *columnNames)
       : colCount(colCount) {
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
     create(colCount, capacity);
     copy_names((char *)columnNames, colCount);
   }
-  Matrix_t(const unsigned short colCount, const char *columnNames)
+  Matrix_t(const size_t colCount, const char *columnNames)
       : colCount(colCount) {
     create(colCount, capacity);
     copy_names((char *)columnNames, colCount);
   }
-  Matrix_t(const unsigned short colCount) { create(colCount, capacity); }
-  Matrix_t(const unsigned short colCount, const unsigned long rowCount)
+  Matrix_t(const size_t colCount) { create(colCount, capacity); }
+  Matrix_t(const size_t colCount, const size_t rowCount)
       : colCount(colCount), rowCount(rowCount), capacity(rowCount) {
     create(colCount, rowCount);
   }
-  Matrix_t(const char *name, const unsigned short colCount)
-      : colCount(colCount) {
+  Matrix_t(const char *name, const size_t colCount) : colCount(colCount) {
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
     create(colCount, capacity);
   }
@@ -76,7 +74,7 @@ struct Matrix_t {
     return *this;
   }
 
-  Row_t getRow(unsigned long rIdx) {
+  Row_t getRow(size_t rIdx) {
     if (rIdx >= rowCount || values == nullptr)
       return Row_t();
 
@@ -84,14 +82,14 @@ struct Matrix_t {
 
     SqlValue *cpy_ptr = values;
     cpy_ptr += rIdx * colCount;
-    for (unsigned short i = 0; i < colCount; ++i)
+    for (size_t i = 0; i < colCount; ++i)
       r.values[i] = *(cpy_ptr + i);
 
     free(cpy_ptr);
     return r;
   }
 
-  Column_t getColumn(unsigned short cIdx) {
+  Column_t getColumn(size_t cIdx) {
     if (cIdx >= colCount || values == nullptr)
       return Column_t();
 
@@ -99,17 +97,27 @@ struct Matrix_t {
 
     SqlValue *cpy_ptr = values;
     cpy_ptr += cIdx;
-    for (unsigned long i = 0; i < rowCount; ++i)
+    for (size_t i = 0; i < rowCount; ++i)
       c.values[i] = *(cpy_ptr + (i * colCount));
 
     return c;
   }
 
-  const char *getColumnName(unsigned short cIdx) {
+  const char *getColumnName(size_t cIdx) {
     if (cIdx >= colCount)
       return "";
 
     return columnNames + (cIdx * MAX_COLUMN_NAME_LENGTH);
+  }
+
+  const char *getSQLColumnNames() {
+    size_t bufSize = (MAX_COLUMN_NAME_LENGTH + 1) * colCount + 1;
+    char *buffer = (char *)malloc(bufSize);
+
+    const char *fmt_str = "%s,";
+    const char *last_fmt_str = "%s";
+
+    for (size_t col)
   }
 
   void appendRow(Row_t r) {
@@ -129,7 +137,7 @@ struct Matrix_t {
       cpy.destroy();
     }
 
-    for (unsigned short i = 0; i < colCount; ++i)
+    for (size_t i = 0; i < colCount; ++i)
       values[i][rowCount] = r.values[i];
 
     rowCount++;
@@ -158,16 +166,16 @@ struct Matrix_t {
   }
 
 private:
-  unsigned long capacity = 1;
+  size_t capacity = 1;
 
-  void create(unsigned short colCount, unsigned long rowCount) {
+  void create(size_t colCount, size_t rowCount) {
     this->colCount = colCount;
     this->rowCount = rowCount;
     this->values = new SqlValue[rowCount * colCount];
     this->columnNames = new char[colCount * MAX_COLUMN_NAME_LENGTH];
   }
 
-  void copy_names(char *columnNames, unsigned short count) {
+  void copy_names(char *columnNames, size_t count) {
     if (count != colCount)
       return;
 
