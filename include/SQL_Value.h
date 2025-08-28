@@ -1,21 +1,14 @@
 #ifndef SQL_VALUE_H
 #define SQL_VALUE_H
 
-#ifndef ARDUINO
-
 #include <assert.h>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <format>
-#include <string>
-#include <utility>
-#else
-#include <Arduino>
-#endif
-#include <iostream>
 #include <sqlite3.h>
+#include <utility>
 
 namespace SQL {
 
@@ -145,24 +138,27 @@ struct SqlValue {
   }
 
   const char *toString() {
+    size_t bufSize = 32;
+    char *buffer = (char *)malloc(bufSize);
+
     switch (kind) {
     case Type::Null:
-      str = "NULL";
+      sprintf(buffer, "NULL");
       break;
     case Type::Integer:
-      str = std::to_string(st.i);
+      sprintf(buffer, "%ld", st.i);
       break;
     case Type::Real:
-      str = std::to_string(st.r);
+      sprintf(buffer, "%.3lf", st.r);
       break;
     case Type::Text:
-      str = std::format("'{}'", st.s);
-      break;
     case Type::Blob:
-      str = std::string((char *)st.b, size);
+      size_t need = snprintf(NULL, 0, "%s", st.s);
+      buffer = (char *)realloc(buffer, need);
+      strcpy(buffer, st.s);
       break;
     }
-    return str.c_str();
+    return buffer;
   }
 
   // Accessors (assert on wrong' type for simplicity)
@@ -205,7 +201,6 @@ struct SqlValue {
 private:
   Type kind;
   size_t size; // in bytes
-  std::string str;
 
   union Storage {
     int64_t i;

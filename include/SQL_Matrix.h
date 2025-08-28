@@ -5,13 +5,9 @@
 #include "SQL_Row.h"
 #include "SQL_Value.h"
 #include <cstddef>
-#include <cstdlib>
-
-#ifndef ARDUINO
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <format>
-#endif
 
 namespace SQL {
 
@@ -145,24 +141,15 @@ struct Matrix_t {
 
     size_t pos = 0;
     for (size_t r = 0; r < rowCount; ++r) {
-      for (size_t c = 0; c < colCount; ++c) {
-        size_t need = snprintf(buffer + pos, bufSize - pos, "%s\t",
-                               values[r * colCount + c].toString());
-        if (need >= bufSize - pos) {
-          bufSize *= 2;
-          buffer = (char *)realloc(buffer, bufSize);
+      size_t need =
+          snprintf(buffer + pos, bufSize - pos, "%s\n", getRow(r).toString());
 
-          need = snprintf(buffer + pos, bufSize - pos, "%s\t",
-                          values[r * colCount + c].toString());
-        }
-        pos += need;
-      }
-      size_t need = snprintf(buffer + pos, bufSize - pos, "\n");
       if (need >= bufSize - pos) {
         bufSize *= 2;
         buffer = (char *)realloc(buffer, bufSize);
 
-        need = snprintf(buffer + pos, bufSize - pos, "\n");
+        need =
+            snprintf(buffer + pos, bufSize - pos, "%s\n", getRow(r).toString());
       }
       pos += need;
     }

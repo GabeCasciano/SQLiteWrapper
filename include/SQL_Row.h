@@ -2,6 +2,7 @@
 #define SQL_ROW
 
 #include "SQL_Value.h"
+#include <cstdio>
 
 namespace SQL {
 struct Row_t {
@@ -31,6 +32,26 @@ struct Row_t {
       return;
     if (values != nullptr)
       values[cIdx] = value;
+  }
+
+  const char *toString() {
+    size_t bufSize = 128;
+    char *buffer = (char *)malloc(bufSize);
+    size_t pos = 0;
+
+    for (size_t c = 0; c < colCount; ++c) {
+      size_t need =
+          snprintf(buffer + pos, bufSize - pos, "%s\t", values[c].toString());
+      if (need >= bufSize - pos) {
+        bufSize *= 2;
+        buffer = (char *)realloc(buffer, bufSize);
+
+        need =
+            snprintf(buffer + pos, bufSize - pos, "%s\t", values[c].toString());
+      }
+      pos += need;
+    }
+    return buffer;
   }
 
 private:

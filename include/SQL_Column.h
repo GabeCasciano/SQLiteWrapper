@@ -2,6 +2,7 @@
 #define SQL_COLUMN
 
 #include "SQL_Value.h"
+#include <cstdio>
 
 namespace SQL {
 struct Column_t {
@@ -28,6 +29,26 @@ struct Column_t {
       move_from(std::move(other));
     }
     return *this;
+  }
+
+  const char *toString() {
+    size_t bufSize = 128;
+    char *buffer = (char *)malloc(bufSize);
+    size_t pos = 0;
+
+    for (size_t r = 0; r < rowCount; ++r) {
+      size_t need =
+          snprintf(buffer + pos, bufSize - pos, "%s\t", values[r].toString());
+      if (need >= bufSize - pos) {
+        bufSize *= 2;
+        buffer = (char *)realloc(buffer, bufSize);
+
+        need =
+            snprintf(buffer + pos, bufSize - pos, "%s\t", values[r].toString());
+      }
+      pos += need;
+    }
+    return buffer;
   }
 
 private:
