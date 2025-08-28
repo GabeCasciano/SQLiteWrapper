@@ -2,6 +2,8 @@
 #define SQL_DB_H
 
 #include "SQL_Datatypes.h"
+#include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ostream>
@@ -20,19 +22,17 @@ class SQL_DB {
 
 public:
   SQL_DB(const char *filename) : filename(filename) {
-    // Check if we can open the DB, do so
     if (sqlite3_open_v2(filename, &db,
                         SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
                         nullptr) != SQLITE_OK)
-      throw std::runtime_error(std::format(
-          "Open failed:\n, {} : {}", sqlite3_errcode(db), sqlite3_errmsg(db)));
+      return;
 
     sql_err = nullptr;
   }
 
   ~SQL_DB() {
     sqlite3_close_v2(db);
-    if (sql_err)
+    if (sql_err != nullptr)
       sqlite3_free(sql_err);
   }
 
@@ -41,35 +41,58 @@ public:
     bool exists = false;
     auto callback = [](void *data, int argc, char **argv,
                        char **colNames) -> int {
-      bool *exists_ptr = static_cast<bool *>(data);
+      bool *exists_ptr = (bool *)(data);
       *exists_ptr = (argc > 0 && argv[0] != nullptr);
-      return 0;
+      return false;
     };
 
-    std::string check = std::format("SELECT name "
-                                    "FROM sqlite_master "
-                                    "WHERE type='table' AND name='{}';",
-                                    tableName);
+    const char *fmt_str =
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='%s';";
+
+    size_t need = snprintf(NULL, 0, fmt_str, tableName);
+    char *check = (char *)malloc(need);
+    sprintf(check, fmt_str, tableName);
 
     // Execute the command and give it the callback
-    if (sqlite3_exec(db, check.c_str(), callback, &exists, &sql_err) !=
-        SQLITE_OK)
-      throw std::runtime_error(sql_error());
+    if (sqlite3_exec(db, check, callback, &exists, &sql_err) != SQLITE_OK)
+      return false;
 
     return exists;
   }
 
   inline void createTable(Matrix_t matrix, unsigned short primaryKey) {
-    std::string sql_str =
-        std::format("CREATE TABLE IF NOT EXISTS {}(", matrix.name);
+    const char *fmt_str = "CREATE TABLR IF NOT EXISTS %s (%s);";
+    // example "name TEXT PRIMARY KEY,"
+    // example "value REAL NOT NULL);"
+    const char *names_fmt_str = "%s %s %s%s";
+
+    size_t nameBufSize = 64;
+    char *nameBuffer = (char *)malloc(nameBufSize);
+    size_t pos = 0;
 
     for (short i = 0; i < matrix.colCount; ++i) {
-      sql_str += std::format("{} {} {}{}", matrix.columnNames[i],
-                             matrix.values[i][0].typeString(),
-                             (i == primaryKey) ? "PRIMARY KEY" : "NOT NULL",
-                             (i != (matrix.colCount - 1)) ? "," : ");");
+      size_t need =
+          snprintf(nameBuffer + pos, nameBufSize - pos, names_fmt_str,
+                   matrix.getColumnName(i), matrix.values[i].typeString(),
+                   (i == primaryKey) ? "PRIMARY KEY" : "NOT NULL",
+                   (i < matrix.colCount - 1) ? ", " : "");
+      if (need > nameBufSize) {
+        nameBufSize *= 2;
+        nameBuffer = (char *)realloc(nameBuffer, nameBufSize);
+        size_t need =
+            snprintf(nameBuffer + pos, nameBufSize - pos, names_fmt_str,
+                     matrix.getColumnName(i), matrix.values[i].typeString(),
+                     (i == primaryKey) ? "PRIMARY KEY" : "NOT NULL",
+                     (i < matrix.colCount - 1) ? ", " : "");
+      }
+      pos += need;
     }
-    execSimpleSQL(strdup(sql_str.c_str()));
+
+    size_t need = snprintf(NULL, 0, fmt_str, matrix.name, nameBuffer);
+    char *buffer = (char *)malloc(need);
+    sprintf(buffer, fmt_str, matrix.name, nameBuffer);
+
+    execSimpleSQL(buffer);
   }
 
   inline void dropTable(const char *tableName) {
