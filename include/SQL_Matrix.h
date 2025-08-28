@@ -4,6 +4,8 @@
 #include "SQL_Column.h"
 #include "SQL_Row.h"
 #include "SQL_Value.h"
+#include <cstddef>
+#include <cstdlib>
 
 #ifndef ARDUINO
 #include <cstdio>
@@ -25,24 +27,24 @@ struct Matrix_t {
   Matrix_t() = default;
   // construcotr
   Matrix_t(const char *name, const unsigned short colCount,
-           const unsigned long rowCount, const char **columnNames)
+           const unsigned long rowCount, const char *columnNames)
       : colCount(colCount), rowCount(rowCount), capacity(rowCount) {
 
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
     create(colCount, rowCount);
-    copy_names((char **)columnNames, colCount);
+    copy_names((char *)columnNames, colCount);
   }
   Matrix_t(const char *name, const unsigned short colCount,
-           const char **columnNames)
+           const char *columnNames)
       : colCount(colCount) {
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
     create(colCount, capacity);
-    copy_names((char **)columnNames, colCount);
+    copy_names((char *)columnNames, colCount);
   }
-  Matrix_t(const unsigned short colCount, const char **columnNames)
+  Matrix_t(const unsigned short colCount, const char *columnNames)
       : colCount(colCount) {
     create(colCount, capacity);
-    copy_names((char **)columnNames, colCount);
+    copy_names((char *)columnNames, colCount);
   }
   Matrix_t(const unsigned short colCount) { create(colCount, capacity); }
   Matrix_t(const unsigned short colCount, const unsigned long rowCount)
@@ -137,11 +139,39 @@ struct Matrix_t {
     rowCount++;
   }
 
-  const char *toString() {}
+  const char *toString() {
+    size_t bufSize = 128;
+    char *buffer = (char *)malloc(bufSize);
+
+    size_t pos = 0;
+    for (size_t r = 0; r < rowCount; ++r) {
+      for (size_t c = 0; c < colCount; ++c) {
+        size_t need = snprintf(buffer + pos, bufSize - pos, "%s\t",
+                               values[r * colCount + c].toString());
+        if (need >= bufSize - pos) {
+          bufSize *= 2;
+          buffer = (char *)realloc(buffer, bufSize);
+
+          need = snprintf(buffer + pos, bufSize - pos, "%s\t",
+                          values[r * colCount + c].toString());
+        }
+        pos += need;
+      }
+      size_t need = snprintf(buffer + pos, bufSize - pos, "\n");
+      if (need >= bufSize - pos) {
+        bufSize *= 2;
+        buffer = (char *)realloc(buffer, bufSize);
+
+        need = snprintf(buffer + pos, bufSize - pos, "\n");
+      }
+      pos += need;
+    }
+
+    return buffer;
+  }
 
 private:
   unsigned long capacity = 1;
-  const char *toStr;
 
   void create(unsigned short colCount, unsigned long rowCount) {
     this->colCount = colCount;
