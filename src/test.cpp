@@ -78,9 +78,7 @@ int main() {
   auto retrieve_table = []() {
     SQL_DB sql("test.db");
 
-    println("1");
     Matrix_t matrix = sql.selectFromTable("test");
-    println("2");
     println(matrix.toString());
   };
   tryFunction(retrieve_table, "Read db");
