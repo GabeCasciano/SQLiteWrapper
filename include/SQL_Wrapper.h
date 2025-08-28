@@ -2,6 +2,7 @@
 #define SQL_DB_H
 
 #include "SQL_Matrix.h"
+#include "SQL_Value.h"
 
 #include <cstddef>
 #include <cstdio>
@@ -9,8 +10,6 @@
 #include <cstring>
 
 #ifndef ARDUINO
-#include <format>
-#include <iostream>
 #include <stdexcept>
 #endif
 
@@ -68,12 +67,12 @@ public:
     char *nameBuffer = (char *)malloc(nameBufSize);
     size_t pos = 0;
 
-    for (short i = 0; i < matrix.colCount; ++i) {
+    for (size_t i = 0; i < matrix.colCount; ++i) {
       size_t need =
           snprintf(nameBuffer + pos, nameBufSize - pos, names_fmt_str,
                    matrix.getColumnName(i), matrix.values[i].typeString(),
                    (i == primaryKey) ? "PRIMARY KEY" : "NOT NULL",
-                   (i < matrix.colCount - 1) ? ", " : "");
+                   (i == matrix.colCount - 1) ? ", " : "");
       if (need > nameBufSize) {
         nameBufSize *= 2;
         nameBuffer = (char *)realloc(nameBuffer, nameBufSize);
@@ -105,19 +104,15 @@ public:
     if (data.colCount != matrix.colCount)
       return;
 
-    const char *sql_str = "INSERT INTO %s (%s) VALUES (%s);";
+    const char *fmt_str = "INSERT INTO %s (%s) VALUES (%s);";
+    size_t bufSize = snprintf(
+        NULL, 0, fmt_str, matrix.getSQLColumnNamesString(), data.toSQLString());
 
-    std::string dName_str = "(";
-    std::string data_str = "VALUES (";
-    for (short i = 0; i < matrix.colCount; ++i) {
-      bool last = matrix.colCount - i > 1;
-      insert(dName_str, matrix.getColumnName(i), last);
-      insert(data_str, data.values[i].toString(), last);
-    }
+    char *sql_str = (char *)malloc(bufSize);
+    sprintf(sql_str, fmt_str, matrix.getSQLColumnNamesString(),
+            data.toSQLString());
 
-    sql_str = std::format("{} {} {};", sql_str, dName_str, data_str);
-
-    execSimpleSQL(strdup(sql_str.c_str()));
+    execSimpleSQL(sql_str);
   }
 
   inline void insertManySameTypeInto(Matrix_t matrix, Row_t *data,
@@ -131,20 +126,18 @@ public:
 
     execSimpleSQL(strdup("BEGIN TRANSACTION;"));
 
+    const char *fmt_str = "INSERT INTO %s (%s) VALUES (%s);";
+
     for (unsigned long i = 0; i < rowCount; ++i) {
-      std::string sql_str = std::format("INSERT INTO {}", matrix.name);
-      std::string dName_str = "(";
-      std::string data_str = "VALUES (";
-      for (long i = 0; i < colCount; ++i) {
-        bool last = i != (colCount - 1);
-        insert(dName_str, matrix.columnNames[i], last);
-        insert(data_str, data->values[i].toString(), last);
-      }
+      size_t bufSize =
+          snprintf(NULL, 0, fmt_str, matrix.getSQLColumnNamesString(),
+                   data.toSQLString());
 
-      sql_str = std::format("{} {} {};", sql_str, dName_str, data_str);
+      char *sql_str = (char *)malloc(bufSize);
+      sprintf(sql_str, fmt_str, matrix.getSQLColumnNamesString(),
+              data.toSQLString());
 
-      if (sqlite3_prepare_v2(db, sql_str.c_str(), -1, &stmt, nullptr) !=
-          SQLITE_OK)
+      if (sqlite3_prepare_v2(db, sql_str, -1, &stmt, nullptr) != SQLITE_OK)
         throw std::runtime_error(db_error_msg("Prepare"));
 
       if (sqlite3_step(stmt) != SQLITE_DONE)
@@ -161,8 +154,11 @@ public:
   inline Matrix_t selectFromTable(const char *tableName) {
     Matrix_t matrix;
 
-    std::string sql_str = std::format("SELECT * FROM {};", tableName);
-    return queryToTable(strdup(sql_str.c_str()));
+    size_t bufSize = snprintf(NULL, 0, "SELECT * FROM %s;", tableName);
+    char *sql_str = (char *)malloc(bufSize);
+    sprintf(sql_str, "SELECT * FROM %s", tableName);
+
+    return queryToTable(sql_str);
   }
 
 private:
@@ -170,64 +166,53 @@ private:
   std::string filename;
   char *sql_err;
 
-  inline void insert(std::string &dest, const char *str, bool last) {
-    dest += std::format("{}{}", str, (last) ? ", " : ")");
-  }
-
-  inline Matrix_t queryToTable(char *query) {
+  inline Matrix_t queryToTable(const char *query) {
     Matrix_t selection;
     sqlite3_stmt *stmt;
-
-    printf("1: %p %s \n", (void *)query, query);
 
     if (sqlite3_prepare_v2(db, query, -1, &stmt, nullptr) != SQLITE_OK) {
       throw std::runtime_error(db_error_msg("Prepare"));
     }
 
-    printf("2");
-
-    unsigned short colCount = sqlite3_column_count(stmt);
+    size_t colCount = sqlite3_column_count(stmt);
     selection = Matrix_t(colCount);
 
-    printf("3");
-
-    for (int i = 0; i < colCount; ++i) {
-      snprintf(selection.columnNames[i], MAX_COLUMN_NAME_LENGTH, "%s",
-               sqlite3_column_name(stmt, i));
-      printf("%s", selection.columnNames[i]);
+    for (size_t i = 0; i < colCount; ++i) {
+      strcpy(selection.columnNames + (i * MAX_COLUMN_NAME_LENGTH),
+             sqlite3_column_name(stmt, i));
+      printf("%s", selection.columnNames + (i * MAX_COLUMN_NAME_LENGTH));
     }
-
-    printf("4");
 
     Row_t r = Row_t(colCount);
     do {
-      for (int i = 0; i < colCount; ++i) {
-        std::cout << "1";
+      for (size_t i = 0; i < colCount; ++i) {
         r.values[i].from_column(stmt, i);
-        std::cout << "2";
       }
       selection.appendRow(r);
-      std::cout << "3";
     } while (sqlite3_step(stmt) == SQLITE_ROW);
 
     sqlite3_finalize(stmt);
-    free(query);
     return selection;
   }
 
-  inline void execSimpleSQL(char *sql_str) {
+  inline void execSimpleSQL(const char *sql_str) {
     if (sqlite3_exec(db, sql_str, nullptr, nullptr, &sql_err) != SQLITE_OK)
       throw std::runtime_error(sql_error());
-    free(sql_str);
   }
 
-  inline std::string db_error_msg(const char *error) {
-    return std::format("{} Error: {}", error, sqlite3_errmsg(db));
+  inline const char *db_error_msg(const char *error) {
+    size_t bufSize =
+        snprintf(NULL, 0, "%s Error: %s", error, sqlite3_errmsg(db));
+    char *buffer = (char *)malloc(bufSize);
+    sprintf(buffer, "%s Error: %s", error, sqlite3_errmsg(db));
+    return buffer;
   }
 
-  inline std::string sql_error() {
-    std::string str = std::format("SQL Error: {}", sql_err);
-    return str;
+  inline const char *sql_error() {
+    size_t bufSize = snprintf(NULL, 0, "SQL Error: %s", sql_err);
+    char *buffer = (char *)malloc(bufSize);
+    sprintf(buffer, "SQL Error: %s", sql_err);
+    return buffer;
   }
 };
 

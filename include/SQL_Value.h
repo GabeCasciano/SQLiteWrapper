@@ -153,7 +153,7 @@ struct SqlValue {
       break;
     case Type::Text:
     case Type::Blob:
-      size_t need = snprintf(NULL, 0, "%s", st.s);
+      size_t need = snprintf(NULL, 0, "'%s'", st.s);
       buffer = (char *)realloc(buffer, need);
       strcpy(buffer, st.s);
       break;

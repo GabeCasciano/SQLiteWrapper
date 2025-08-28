@@ -89,37 +89,6 @@ struct Matrix_t {
     return r;
   }
 
-  Column_t getColumn(size_t cIdx) {
-    if (cIdx >= colCount || values == nullptr)
-      return Column_t();
-
-    Column_t c = Column_t(rowCount);
-
-    SqlValue *cpy_ptr = values;
-    cpy_ptr += cIdx;
-    for (size_t i = 0; i < rowCount; ++i)
-      c.values[i] = *(cpy_ptr + (i * colCount));
-
-    return c;
-  }
-
-  const char *getColumnName(size_t cIdx) {
-    if (cIdx >= colCount)
-      return "";
-
-    return columnNames + (cIdx * MAX_COLUMN_NAME_LENGTH);
-  }
-
-  const char *getSQLColumnNames() {
-    size_t bufSize = (MAX_COLUMN_NAME_LENGTH + 1) * colCount + 1;
-    char *buffer = (char *)malloc(bufSize);
-
-    const char *fmt_str = "%s,";
-    const char *last_fmt_str = "%s";
-
-    for (size_t col)
-  }
-
   void appendRow(Row_t r) {
     if (r.colCount != colCount)
       return;
@@ -141,6 +110,48 @@ struct Matrix_t {
       values[i][rowCount] = r.values[i];
 
     rowCount++;
+  }
+
+  Column_t getColumn(size_t cIdx) {
+    if (cIdx >= colCount || values == nullptr)
+      return Column_t();
+
+    Column_t c = Column_t(rowCount);
+
+    SqlValue *cpy_ptr = values;
+    cpy_ptr += cIdx;
+    for (size_t i = 0; i < rowCount; ++i)
+      c.values[i] = *(cpy_ptr + (i * colCount));
+
+    return c;
+  }
+
+  const char *getColumnName(size_t cIdx) {
+    if (cIdx >= colCount)
+      return "";
+
+    return columnNames + (cIdx * MAX_COLUMN_NAME_LENGTH);
+  }
+
+  void setColumnName(const char *colName, size_t cIdx) {
+    if (cIdx >= colCount)
+      return;
+
+    strcpy(columnNames + (cIdx * MAX_COLUMN_NAME_LENGTH), colName);
+  }
+
+  const char *getSQLColumnNamesString() {
+    size_t bufSize = (MAX_COLUMN_NAME_LENGTH + 1) * colCount + 1;
+    char *buffer = (char *)malloc(bufSize);
+
+    const char *fmt_str = "%s,";
+    const char *last_fmt_str = "%s";
+
+    for (size_t c = 0; c < colCount; ++c)
+      sprintf(buffer + (c * MAX_COLUMN_NAME_LENGTH),
+              (c == colCount - 1) ? fmt_str : last_fmt_str, getColumnName(c));
+
+    return buffer;
   }
 
   const char *toString() {

@@ -34,6 +34,22 @@ struct Row_t {
       values[cIdx] = value;
   }
 
+  const char *toSQLString() {
+    size_t bufSize = (MAX_COLUMN_NAME_LENGTH + 1) * colCount + 1;
+
+    char *buffer = (char *)malloc(bufSize);
+
+    const char *fmt_str = "%s,";
+    const char *last_fmt_str = "%s";
+
+    for (size_t c = 0; c < colCount; ++c)
+      sprintf(buffer + (c * MAX_COLUMN_NAME_LENGTH),
+              (c == colCount - 1) ? fmt_str : last_fmt_str,
+              values[c].toString());
+
+    return buffer;
+  }
+
   const char *toString() {
     size_t bufSize = 128;
     char *buffer = (char *)malloc(bufSize);
