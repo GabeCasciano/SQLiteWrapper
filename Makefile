@@ -1,7 +1,7 @@
 
 # Compiler
 CXX := g++
-CXXFLAGS := -std=c++20 -Wall -Wextra -O0
+CXXFLAGS := -std=c++20 -Wall -Wextra -O0 -fsanitize=address
 
 # Find all nested include dirs named 'include'
 INCLUDE_DIRS := include/

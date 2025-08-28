@@ -1,13 +1,14 @@
 #ifndef SQL_VALUE_H
 #define SQL_VALUE_H
 
-#include <format>
 #ifndef ARDUINO
+
 #include <assert.h>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <format>
 #include <string>
 #include <utility>
 #else
@@ -17,6 +18,9 @@
 #include <sqlite3.h>
 
 namespace SQL {
+
+#define MAX_COLUMN_NAME_LENGTH (32)
+#define MAX_TABLE_NAME_LENGTH (32)
 
 struct SqlValue {
   enum Type { Null = 0, Integer = 1, Real = 2, Text = 3, Blob = 4 };
@@ -126,17 +130,17 @@ struct SqlValue {
   const char *typeString() {
     switch (kind) {
     case Type::Null:
-      return "NULL";
+      return "NULL\0";
     case Type::Integer:
-      return "INTEGER";
+      return "INTEGER\0";
     case Type::Real:
-      return "REAL";
+      return "REAL\0";
     case Type::Text:
-      return "TEXT";
+      return "TEXT\0";
     case Type::Blob:
-      return "BLOB";
+      return "BLOB\0";
     default:
-      return "NULL";
+      return "NULL\0";
     }
   }
 

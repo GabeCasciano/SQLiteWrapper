@@ -1,8 +1,9 @@
-#ifndef SQL_MATRIX
-#define SQL_MATRIX
+#ifndef SQL_DATATYPES_H_
+#define SQL_DATATYPES_H_
 
 #include "SQL_Column.h"
 #include "SQL_Row.h"
+#include "SQL_Value.h"
 
 #ifndef ARDUINO
 #include <cstdio>
@@ -18,21 +19,22 @@ struct Matrix_t {
   unsigned long rowCount = 0;
   char name[MAX_TABLE_NAME_LENGTH];
   SqlValue *values = nullptr;
-  char **columnNames = nullptr;
+  char *columnNames = nullptr;
 
   // default constructor
   Matrix_t() = default;
   // construcotr
   Matrix_t(const char *name, const unsigned short colCount,
            const unsigned long rowCount, const char **columnNames)
-      : capacity(rowCount) {
+      : colCount(colCount), rowCount(rowCount), capacity(rowCount) {
 
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
     create(colCount, rowCount);
     copy_names((char **)columnNames, colCount);
   }
   Matrix_t(const char *name, const unsigned short colCount,
-           const char **columnNames) {
+           const char **columnNames)
+      : colCount(colCount) {
     snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
     create(colCount, capacity);
     copy_names((char **)columnNames, colCount);
@@ -49,7 +51,7 @@ struct Matrix_t {
   }
   Matrix_t(const char *name, const unsigned short colCount)
       : colCount(colCount) {
-    safeNameCopy(this->name, name, MAX_TABLE_NAME_LENGTH);
+    snprintf(this->name, MAX_TABLE_NAME_LENGTH, "%s", name);
     create(colCount, capacity);
   }
   // destructor
@@ -77,24 +79,39 @@ struct Matrix_t {
   }
 
   Row_t getRow(unsigned long rIdx) {
-    if (rIdx >= rowCount)
+    if (rIdx >= rowCount || values == nullptr)
       return Row_t();
 
-    return Row_t(colCount, rIdx, values);
+    Row_t r = Row_t(colCount);
+
+    SqlValue *cpy_ptr = values;
+    cpy_ptr += rIdx * colCount;
+    for (unsigned short i = 0; i < colCount; ++i)
+      r.values[i] = *(cpy_ptr + i);
+
+    free(cpy_ptr);
+    return r;
   }
 
   Column_t getColumn(unsigned short cIdx) {
-    if (cIdx >= colCount)
+    if (cIdx >= colCount || values == nullptr)
       return Column_t();
 
-    return Column_t(rowCount, values[cIdx]);
+    Column_t c = Column_t(rowCount);
+
+    SqlValue *cpy_ptr = values;
+    cpy_ptr += cIdx;
+    for (unsigned long i = 0; i < rowCount; ++i)
+      c.values[i] = *(cpy_ptr + (i * colCount));
+
+    return c;
   }
 
   const char *getColumnName(unsigned short cIdx) {
     if (cIdx >= colCount)
       return "";
 
-    return columnNames[cIdx];
+    return columnNames + (cIdx * MAX_COLUMN_NAME_LENGTH);
   }
 
   void appendRow(Row_t r) {
@@ -120,32 +137,7 @@ struct Matrix_t {
     rowCount++;
   }
 
-  const char *toString(bool f = false) {
-
-#ifndef ARDUINO
-
-    if (strlen(toStr) > 0 && !f)
-      return toStr;
-
-    std::string str =
-        std::format("Name: {}, Shape: ({}, {}) \n", name, colCount, rowCount);
-
-    auto addBars = [&](SqlValue *arr) {
-      std::string _str = "|";
-      for (unsigned short i = 0; i < colCount; ++i) {
-        str += std::format(" {} |", arr[i].toString());
-      }
-      return _str;
-    };
-    str += std::format("{}\n", addBars((SqlValue *)columnNames));
-    for (unsigned long i = 0; i < rowCount; ++i)
-      str += std::format("{}\n", addBars(this->getRow(i).values));
-
-    toStr = str.c_str();
-    return toStr;
-
-#endif
-  }
+  const char *toString() {}
 
 private:
   unsigned long capacity = 1;
@@ -155,20 +147,14 @@ private:
     this->colCount = colCount;
     this->rowCount = rowCount;
     this->values = new SqlValue[rowCount * colCount];
-
-    this->columnNames = new char *[colCount];
-
-    for (unsigned short i = 0; i < colCount; ++i)
-      this->columnNames[i] = new char[MAX_COLUMN_NAME_LENGTH];
+    this->columnNames = new char[colCount * MAX_COLUMN_NAME_LENGTH];
   }
 
-  void copy_names(char **columnNames, unsigned short count) {
+  void copy_names(char *columnNames, unsigned short count) {
     if (count != colCount)
       return;
 
-    for (unsigned short i = 0; i < count; ++i)
-      snprintf(this->columnNames[i], MAX_COLUMN_NAME_LENGTH, "%s",
-               columnNames[i]);
+    strcpy(this->columnNames, columnNames);
   }
 
   void destroy() {
@@ -177,8 +163,6 @@ private:
       values = nullptr;
     }
     if (columnNames != nullptr) {
-      for (unsigned short i = 0; i < colCount; ++i)
-        delete[] columnNames[i];
       delete[] columnNames;
       columnNames = nullptr;
     }

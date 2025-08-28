@@ -2,6 +2,8 @@
 #define SQL_DB_H
 
 #include "SQL_Datatypes.h"
+#include <cstdlib>
+#include <cstring>
 #include <ostream>
 
 #ifndef ARDUINO
@@ -67,11 +69,12 @@ public:
                              (i == primaryKey) ? "PRIMARY KEY" : "NOT NULL",
                              (i != (matrix.colCount - 1)) ? "," : ");");
     }
-    execSimpleSQL(sql_str.c_str());
+    execSimpleSQL(strdup(sql_str.c_str()));
   }
 
   inline void dropTable(const char *tableName) {
-    execSimpleSQL(std::format("DROP TABLE IF EXISTS {};", tableName).c_str());
+    execSimpleSQL(
+        strdup(std::format("DROP TABLE IF EXISTS {};", tableName).c_str()));
   }
 
   inline void insertInto(Matrix_t matrix, Row_t data) {
@@ -81,17 +84,15 @@ public:
     std::string sql_str = std::format("INSERT INTO {}", matrix.name);
     std::string dName_str = "(";
     std::string data_str = "VALUES (";
-    std::cout << matrix.colCount << std::endl;
     for (short i = 0; i < matrix.colCount; ++i) {
       bool last = matrix.colCount - i > 1;
       insert(dName_str, matrix.getColumnName(i), last);
       insert(data_str, data.values[i].toString(), last);
     }
 
-    sql_str = std::format("{} {} {}", sql_str, dName_str, data_str);
+    sql_str = std::format("{} {} {};", sql_str, dName_str, data_str);
 
-    std::cout << sql_str << std::endl;
-    execSimpleSQL(sql_str.c_str());
+    execSimpleSQL(strdup(sql_str.c_str()));
   }
 
   inline void insertManySameTypeInto(Matrix_t matrix, Row_t *data,
@@ -103,7 +104,7 @@ public:
     short colCount = matrix.colCount;
     sqlite3_stmt *stmt;
 
-    execSimpleSQL("BEGIN TRANSACTION;");
+    execSimpleSQL(strdup("BEGIN TRANSACTION;"));
 
     for (unsigned long i = 0; i < rowCount; ++i) {
       std::string sql_str = std::format("INSERT INTO {}", matrix.name);
@@ -129,14 +130,14 @@ public:
       sqlite3_finalize(stmt);
     }
 
-    execSimpleSQL("COMMIT;");
+    execSimpleSQL(strdup("COMMIT;"));
   }
 
   inline Matrix_t selectFromTable(const char *tableName) {
     Matrix_t matrix;
 
     std::string sql_str = std::format("SELECT * FROM {};", tableName);
-    return queryToTable(sql_str.c_str());
+    return queryToTable(strdup(sql_str.c_str()));
   }
 
 private:
@@ -148,21 +149,30 @@ private:
     dest += std::format("{}{}", str, (last) ? ", " : ")");
   }
 
-  inline Matrix_t queryToTable(const char *query) {
+  inline Matrix_t queryToTable(char *query) {
     Matrix_t selection;
     sqlite3_stmt *stmt;
 
-    if (sqlite3_prepare_v2(db, query, -1, &stmt, nullptr) != SQLITE_OK)
+    printf("1: %p %s \n", (void *)query, query);
+
+    if (sqlite3_prepare_v2(db, query, -1, &stmt, nullptr) != SQLITE_OK) {
       throw std::runtime_error(db_error_msg("Prepare"));
+    }
+
+    printf("2");
 
     unsigned short colCount = sqlite3_column_count(stmt);
     selection = Matrix_t(colCount);
 
+    printf("3");
+
     for (int i = 0; i < colCount; ++i) {
-      std::cout << sqlite3_column_name(stmt, i) << std::endl;
       snprintf(selection.columnNames[i], MAX_COLUMN_NAME_LENGTH, "%s",
                sqlite3_column_name(stmt, i));
+      printf("%s", selection.columnNames[i]);
     }
+
+    printf("4");
 
     Row_t r = Row_t(colCount);
     do {
@@ -176,12 +186,14 @@ private:
     } while (sqlite3_step(stmt) == SQLITE_ROW);
 
     sqlite3_finalize(stmt);
+    free(query);
     return selection;
   }
 
-  inline void execSimpleSQL(const char *sql_str) {
+  inline void execSimpleSQL(char *sql_str) {
     if (sqlite3_exec(db, sql_str, nullptr, nullptr, &sql_err) != SQLITE_OK)
       throw std::runtime_error(sql_error());
+    free(sql_str);
   }
 
   inline std::string db_error_msg(const char *error) {
